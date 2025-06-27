@@ -6,6 +6,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.uef.food.model.User;
 import com.uef.food.model.UserRole;
@@ -58,16 +59,17 @@ public class UserController {
                           @RequestParam String password,
                           @RequestParam String fullName,
                           @RequestParam(required = false) String role,
+                          RedirectAttributes redirectAttributes,
                           Model model) {
         // Force role to be CUSTOMER for public registration - restaurant staff can only be added by admin
         UserRole userRole = UserRole.CUSTOMER;
         User user = userService.register(username, email, password, fullName, userRole);
         
         if (user != null) {
-            model.addAttribute("success", "Registration successful! Please login.");
-            return "login";
+            redirectAttributes.addFlashAttribute("success", "Registration successful! Please login with your credentials.");
+            return "redirect:/login";
         } else {
-            model.addAttribute("error", "Username or email already exists");
+            model.addAttribute("error", "Username or email already exists. Please try different credentials.");
             return "register";
         }
     }
@@ -89,8 +91,9 @@ public class UserController {
     }
       @PostMapping("/profile/update")
     public String updateProfile(@RequestParam String fullName,
-                               @RequestParam String phone,
-                               @RequestParam String address,
+                               @RequestParam String email,
+                               @RequestParam(required = false) String phone,
+                               @RequestParam(required = false) String address,
                                HttpSession session,
                                Model model) {
         User user = (User) session.getAttribute("user");
@@ -99,20 +102,70 @@ public class UserController {
         }
         
         try {
-            userService.updateProfile(user.getId(), fullName, phone, address);
+            // Update user with the new information
+            user.setFullName(fullName);
+            user.setEmail(email);
+            
+            // Save the updated user
+            userService.save(user);
+            
             // Update session with new data
-            User updatedUser = userService.findById(user.getId());
-            if (updatedUser != null) {
-                session.setAttribute("user", updatedUser);
-                model.addAttribute("user", updatedUser);
-                model.addAttribute("success", "Profile updated successfully");
-            } else {
-                model.addAttribute("user", user);
-                model.addAttribute("error", "Failed to refresh user data");
-            }
+            session.setAttribute("user", user);
+            model.addAttribute("user", user);
+            model.addAttribute("success", "Profile updated successfully");
         } catch (Exception e) {
             model.addAttribute("user", user);
             model.addAttribute("error", "Failed to update profile: " + e.getMessage());
+        }
+        
+        return "profile";
+    }
+    
+    @PostMapping("/profile/change-password")
+    public String changePassword(@RequestParam String currentPassword,
+                                @RequestParam String newPassword,
+                                @RequestParam String confirmPassword,
+                                HttpSession session,
+                                Model model) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return "redirect:/login";
+        }
+        
+        try {
+            // Validate current password
+            if (!user.getPassword().equals(currentPassword)) {
+                model.addAttribute("user", user);
+                model.addAttribute("error", "Current password is incorrect");
+                return "profile";
+            }
+            
+            // Validate new password
+            if (newPassword == null || newPassword.length() < 6) {
+                model.addAttribute("user", user);
+                model.addAttribute("error", "New password must be at least 6 characters long");
+                return "profile";
+            }
+            
+            // Validate password confirmation
+            if (!newPassword.equals(confirmPassword)) {
+                model.addAttribute("user", user);
+                model.addAttribute("error", "New password and confirmation do not match");
+                return "profile";
+            }
+            
+            // Update password
+            user.setPassword(newPassword);
+            userService.save(user);
+            
+            // Update session
+            session.setAttribute("user", user);
+            model.addAttribute("user", user);
+            model.addAttribute("success", "Password changed successfully");
+            
+        } catch (Exception e) {
+            model.addAttribute("user", user);
+            model.addAttribute("error", "Failed to change password: " + e.getMessage());
         }
         
         return "profile";

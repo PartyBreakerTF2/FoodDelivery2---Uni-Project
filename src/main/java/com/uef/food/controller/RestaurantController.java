@@ -1,6 +1,7 @@
 package com.uef.food.controller;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -189,43 +190,63 @@ public class RestaurantController {
         }
         
         return "redirect:/restaurant/menu";
-    }
-      @GetMapping("/orders")
-    public String manageOrders(HttpSession session, Model model) {
+    }    @GetMapping("/orders")
+    public String manageOrders(@RequestParam(required = false) String status,
+                             HttpSession session, Model model) {
         User user = (User) session.getAttribute("user");
         if (user == null || user.getRole() != UserRole.RESTAURANT_STAFF) {
             return "redirect:/login";
         }
-        
+
         // Check if user is assigned to a restaurant
         if (user.getRestaurantId() == null) {
             model.addAttribute("error", "You are not assigned to any restaurant. Please contact administrator.");
             return "redirect:/login";
         }
-        
+
         // Get the restaurant this staff member is assigned to
         Restaurant restaurant = restaurantService.findById(user.getRestaurantId());
         if (restaurant == null) {
             model.addAttribute("error", "Restaurant not found. Please contact administrator.");
             return "redirect:/login";
         }
-        
+
         // Get orders for this specific restaurant only
         List<Order> orders = orderService.findByRestaurantId(user.getRestaurantId());
         
-        // Calculate order statistics
-        long pendingCount = orders.stream().filter(o -> o.getStatus() == OrderStatus.PENDING).count();
-        long confirmedCount = orders.stream().filter(o -> o.getStatus() == OrderStatus.CONFIRMED).count();
-        long preparingCount = orders.stream().filter(o -> o.getStatus() == OrderStatus.PREPARING).count();
-        long deliveryCount = orders.stream().filter(o -> o.getStatus() == OrderStatus.OUT_FOR_DELIVERY).count();
-        
+        // Filter by status if provided
+        if (status != null && !status.trim().isEmpty()) {
+            try {
+                OrderStatus filterStatus = OrderStatus.valueOf(status.toUpperCase());
+                orders = orders.stream()
+                    .filter(order -> order.getStatus() == filterStatus)
+                    .collect(Collectors.toList());
+            } catch (IllegalArgumentException e) {
+                // Invalid status, ignore filter
+            }
+        }
+
+        // Calculate order statistics from all orders (not filtered)
+        List<Order> allOrders = orderService.findByRestaurantId(user.getRestaurantId());
+        long pendingCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.PENDING).count();
+        long confirmedCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.CONFIRMED).count();
+        long preparingCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.PREPARING).count();
+        long readyCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.READY).count();
+        long deliveryCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.OUT_FOR_DELIVERY).count();
+        long deliveredCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.DELIVERED).count();
+        long cancelledCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.CANCELLED).count();
+
         model.addAttribute("restaurant", restaurant);
         model.addAttribute("orders", orders);
         model.addAttribute("pendingCount", pendingCount);
         model.addAttribute("confirmedCount", confirmedCount);
         model.addAttribute("preparingCount", preparingCount);
+        model.addAttribute("readyCount", readyCount);
         model.addAttribute("deliveryCount", deliveryCount);
-        
+        model.addAttribute("deliveredCount", deliveredCount);
+        model.addAttribute("cancelledCount", cancelledCount);
+        model.addAttribute("currentStatus", status); // For highlighting active filter
+
         return "restaurant/orders";
     }
     

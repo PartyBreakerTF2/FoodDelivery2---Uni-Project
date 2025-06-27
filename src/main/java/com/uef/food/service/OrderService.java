@@ -529,24 +529,43 @@ public class OrderService {
     public List<Order> findPendingOrders() {
         return findByStatus(OrderStatus.PENDING);
     }
-      public List<Order> findActiveOrders() {
+      // Add efficient count methods for reports
+    public long countByStatus(OrderStatus status) {
         if (!checkTableExists()) {
-            List<Order> orders = createSampleOrders(5).stream()
-                .filter(order -> !order.getStatus().equals(OrderStatus.DELIVERED) && 
-                               !order.getStatus().equals(OrderStatus.CANCELLED))
-                .collect(java.util.stream.Collectors.toList());
-            populateCustomerAndRestaurantBatch(orders);
-            return orders;
+            // Return sample counts based on status
+            switch (status) {
+                case PENDING: return 5L;
+                case DELIVERED: return 38L;
+                case CONFIRMED: return 2L;
+                case PREPARING: return 1L;
+                case OUT_FOR_DELIVERY: return 1L;
+                case CANCELLED: return 4L;
+                default: return 0L;
+            }
         }
         
         try {
-            String sql = "SELECT * FROM orders WHERE status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY') ORDER BY order_date DESC";
-            List<Order> orders = jdbcTemplate.query(sql, orderRowMapper);
-            populateCustomerAndRestaurantBatch(orders);
-            return orders;
+            String sql = "SELECT COUNT(*) FROM orders WHERE status = ?";
+            Integer count = jdbcTemplate.queryForObject(sql, Integer.class, status.toString());
+            return count != null ? count.longValue() : 0L;
         } catch (Exception e) {
             ordersTableExists = false;
-            return new ArrayList<>();
+            return 0L;
+        }
+    }
+
+    public long countActiveOrders() {
+        if (!checkTableExists()) {
+            return 4L; // Sample count
+        }
+        
+        try {
+            String sql = "SELECT COUNT(*) FROM orders WHERE status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY')";
+            Integer count = jdbcTemplate.queryForObject(sql, Integer.class);
+            return count != null ? count.longValue() : 0L;
+        } catch (Exception e) {
+            ordersTableExists = false;
+            return 4L;
         }
     }
     

@@ -137,15 +137,11 @@
                                 </thead>
                                 <tbody id="ordersTableBody">
                                     <c:forEach var="order" items="${orders}">
-                                        <tr class="order-row" data-status="<c:out value='${order.status}'/>" 
+                                        <tr data-status="<c:out value='${order.status}'/>" 
                                             data-date="<fmt:formatDate value='${order.orderDate}' pattern='yyyy-MM-dd'/>"
-                                            data-order-id="<c:out value='${order.id}'/>"
-                                            onclick="toggleOrderDetails('<c:out value='${order.id}'/>')"
+                                            onclick="loadOrderDetails('<c:out value='${order.id}'/>')"
                                             style="cursor: pointer;">
-                                            <td>
-                                                <i class="fas fa-chevron-right me-2 expand-icon" id="icon-<c:out value='${order.id}'/>"></i>
-                                                <strong>#<c:out value="${order.id}"/></strong>
-                                            </td>
+                                            <td><strong>#<c:out value="${order.id}"/></strong></td>
                                             <td>
                                                 <c:choose>
                                                     <c:when test="${order.customer != null}">
@@ -192,17 +188,6 @@
                                             </td>
                                             <td><fmt:formatDate value="${order.orderDate}" pattern="MMM dd, yyyy HH:mm"/></td>
                                         </tr>
-                                        <!-- Expandable details row -->
-                                        <tr class="order-details-row" id="details-<c:out value='${order.id}'/>" style="display: none;">
-                                            <td colspan="6">
-                                                <div class="order-details-content p-3" id="content-<c:out value='${order.id}'/>">
-                                                    <div class="text-center py-3">
-                                                        <i class="fas fa-spinner fa-spin text-primary"></i>
-                                                        <span class="ms-2">Loading order details...</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>
                                     </c:forEach>
                                 </tbody>
                             </table>
@@ -227,13 +212,25 @@
         </c:if>
     </div>
 
+    <!-- Order Details Modal -->
+    <div class="modal fade" id="orderDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Order Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="orderDetailsContent">
+                    <!-- Order details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="${pageContext.request.contextPath}/resources/js/global-scripts.js"></script>
     <script>
-        // Keep track of expanded orders
-        let expandedOrders = new Set();
-        
         // Filter functionality
         document.getElementById('statusFilter').addEventListener('change', filterOrders);
         document.getElementById('dateFilter').addEventListener('change', filterOrders);
@@ -243,123 +240,42 @@
             const statusFilter = document.getElementById('statusFilter').value;
             const dateFilter = document.getElementById('dateFilter').value;
             const searchFilter = document.getElementById('searchInput').value.toLowerCase();
-            const rows = document.querySelectorAll('.order-row');
+            const rows = document.querySelectorAll('#ordersTableBody tr');
 
             rows.forEach(row => {
                 const status = row.getAttribute('data-status');
                 const date = row.getAttribute('data-date');
                 const text = row.textContent.toLowerCase();
-                const orderId = row.getAttribute('data-order-id');
-                const detailsRow = document.getElementById('details-' + orderId);
                 
                 const statusMatch = !statusFilter || status === statusFilter;
                 const dateMatch = !dateFilter || date === dateFilter;
                 const textMatch = !searchFilter || text.includes(searchFilter);
                 
-                const shouldShow = statusMatch && dateMatch && textMatch;
-                row.style.display = shouldShow ? '' : 'none';
-                if (detailsRow) {
-                    detailsRow.style.display = shouldShow && expandedOrders.has(orderId) ? '' : 'none';
-                }
+                row.style.display = statusMatch && dateMatch && textMatch ? '' : 'none';
             });
         }
 
-        function toggleOrderDetails(orderId) {
-            const detailsRow = document.getElementById('details-' + orderId);
-            const expandIcon = document.getElementById('icon-' + orderId);
-            
-            if (expandedOrders.has(orderId)) {
-                // Collapse
-                detailsRow.style.display = 'none';
-                expandIcon.className = 'fas fa-chevron-right me-2 expand-icon';
-                expandedOrders.delete(orderId);
-            } else {
-                // Expand
-                detailsRow.style.display = '';
-                expandIcon.className = 'fas fa-chevron-down me-2 expand-icon';
-                expandedOrders.add(orderId);
-                
-                // Load details if not already loaded
-                const contentDiv = document.getElementById('content-' + orderId);
-                if (contentDiv.innerHTML.includes('Loading order details')) {
-                    loadOrderDetails(orderId);
-                }
-            }
-        }
-
         function loadOrderDetails(orderId) {
-            const contentDiv = document.getElementById('content-' + orderId);
-            
-            // Get the context path
-            const contextPath = '${pageContext.request.contextPath}';
-            const url = contextPath + '/admin/orders/' + orderId + '/details';
-            
-            console.log('Loading order details for order ID:', orderId);
-            console.log('Request URL:', url);
-            
-            // Make AJAX call to fetch order details
-            fetch(url)
-                .then(response => {
-                    console.log('Response status:', response.status);
-                    console.log('Response headers:', response.headers);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Received data:', data);
-                    
-                    if (data.success === false) {
-                        console.error('Server returned error:', data.message);
-                        displayOrderError(orderId, data.message);
-                    } else {
-                        displayOrderDetails(data, orderId);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading order details:', error);
-                    displayOrderError(orderId, error.message);
-                });
-        }
-        
-        function displayOrderDetails(order, orderId) {
-            const statusBadgeClass = getStatusBadgeClass(order.status);
-            const statusIcon = getStatusIcon(order.status);
-            const contentDiv = document.getElementById('content-' + orderId);
-            
-            // Safely get values with fallbacks
-            const orderDate = order.orderDate ? formatDate(order.orderDate) : 'N/A';
-            const totalAmount = order.totalAmount ? order.totalAmount.toFixed(2) : '0.00';
-            const specialInstructions = order.specialInstructions || '';
-            const deliveryAddress = order.deliveryAddress || 'N/A';
-            
-            const customerName = (order.customer && order.customer.fullName) ? order.customer.fullName : 'Unknown';
-            const customerEmail = (order.customer && order.customer.email) ? order.customer.email : 'N/A';
-            
-            const restaurantName = (order.restaurant && order.restaurant.name) ? order.restaurant.name : 'Unknown Restaurant';
-            const restaurantAddress = (order.restaurant && order.restaurant.address) ? order.restaurant.address : 'N/A';
-            const restaurantPhone = (order.restaurant && order.restaurant.phone) ? order.restaurant.phone : 'N/A';
-            
+            // Here you would typically make an AJAX call to load order details
+            // For now, showing a comprehensive placeholder
             const content = `
                 <div class="row">
                     <div class="col-md-6">
                         <h6><i class="fas fa-info-circle me-2"></i>Order Information</h6>
                         <table class="table table-borderless table-sm">
-                            <tr><td><strong>Order ID:</strong></td><td>#` + order.id + `</td></tr>
-                            <tr><td><strong>Status:</strong></td><td><span class="badge ` + statusBadgeClass + `">` + statusIcon + ` ` + order.status + `</span></td></tr>
-                            <tr><td><strong>Order Date:</strong></td><td>` + orderDate + `</td></tr>
-                            <tr><td><strong>Total Amount:</strong></td><td><strong>$` + totalAmount + `</strong></td></tr>
-                            ` + (specialInstructions ? `<tr><td><strong>Instructions:</strong></td><td>` + specialInstructions + `</td></tr>` : '') + `
+                            <tr><td><strong>Order ID:</strong></td><td>#${orderId}</td></tr>
+                            <tr><td><strong>Status:</strong></td><td><span class="badge bg-warning">Loading...</span></td></tr>
+                            <tr><td><strong>Order Date:</strong></td><td>Loading...</td></tr>
+                            <tr><td><strong>Total Amount:</strong></td><td>Loading...</td></tr>
                         </table>
                     </div>
                     <div class="col-md-6">
                         <h6><i class="fas fa-user me-2"></i>Customer Information</h6>
                         <table class="table table-borderless table-sm">
-                            <tr><td><strong>Name:</strong></td><td>` + customerName + `</td></tr>
-                            <tr><td><strong>Email:</strong></td><td>` + customerEmail + `</td></tr>
-                            <tr><td><strong>Delivery Address:</strong></td><td>` + deliveryAddress + `</td></tr>
+                            <tr><td><strong>Name:</strong></td><td>Loading...</td></tr>
+                            <tr><td><strong>Email:</strong></td><td>Loading...</td></tr>
+                            <tr><td><strong>Phone:</strong></td><td>Loading...</td></tr>
+                            <tr><td><strong>Address:</strong></td><td>Loading...</td></tr>
                         </table>
                     </div>
                 </div>
@@ -367,97 +283,24 @@
                 <div class="row">
                     <div class="col-12">
                         <h6><i class="fas fa-utensils me-2"></i>Order Items</h6>
-                        ` + (order.orderItems && order.orderItems.length > 0 ? `
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>Item</th>
-                                            <th>Quantity</th>
-                                            <th>Unit Price</th>
-                                            <th>Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ` + order.orderItems.map(item => `
-                                            <tr>
-                                                <td>` + (item.menuItemName || 'Unknown Item') + `</td>
-                                                <td>` + (item.quantity || 0) + `</td>
-                                                <td>$` + (item.unitPrice ? item.unitPrice.toFixed(2) : '0.00') + `</td>
-                                                <td>$` + (item.totalPrice ? item.totalPrice.toFixed(2) : '0.00') + `</td>
-                                            </tr>
-                                        `).join('') + `
-                                    </tbody>
-                                </table>
-                            </div>
-                        ` : '<p class="text-muted">No items found for this order.</p>') + `
+                        <div class="text-center py-3">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading order items...</p>
+                        </div>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-12">
                         <h6><i class="fas fa-store me-2"></i>Restaurant Information</h6>
-                        <table class="table table-borderless table-sm">
-                            <tr><td><strong>Restaurant:</strong></td><td>` + restaurantName + `</td></tr>
-                            <tr><td><strong>Address:</strong></td><td>` + restaurantAddress + `</td></tr>
-                            <tr><td><strong>Phone:</strong></td><td>` + restaurantPhone + `</td></tr>
-                        </table>
+                        <div class="text-center py-3">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span class="ms-2">Loading restaurant details...</span>
+                        </div>
                     </div>
                 </div>
             `;
-            contentDiv.innerHTML = content;
-        }
-        
-        function displayOrderError(orderId, errorMessage) {
-            const contentDiv = document.getElementById('content-' + orderId);
-            const message = errorMessage || 'Unable to fetch details for this order';
-            const content = `
-                <div class="text-center py-3">
-                    <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
-                    <h6 class="mt-3">Could not load order details</h6>
-                    <p class="text-muted">` + message + ` (Order #` + orderId + `)</p>
-                    <button class="btn btn-sm btn-primary" onclick="loadOrderDetails('` + orderId + `')">
-                        <i class="fas fa-redo me-2"></i>Try Again
-                    </button>
-                </div>
-            `;
-            contentDiv.innerHTML = content;
-        }
-        
-        function getStatusBadgeClass(status) {
-            const statusClasses = {
-                'PENDING': 'bg-warning',
-                'CONFIRMED': 'bg-info',
-                'PREPARING': 'bg-primary',
-                'READY': 'bg-success',
-                'OUT_FOR_DELIVERY': 'bg-dark',
-                'DELIVERED': 'bg-success',
-                'CANCELLED': 'bg-danger'
-            };
-            return statusClasses[status] || 'bg-secondary';
-        }
-        
-        function getStatusIcon(status) {
-            const statusIcons = {
-                'PENDING': '<i class="fas fa-clock me-1"></i>',
-                'CONFIRMED': '<i class="fas fa-check me-1"></i>',
-                'PREPARING': '<i class="fas fa-utensils me-1"></i>',
-                'READY': '<i class="fas fa-box me-1"></i>',
-                'OUT_FOR_DELIVERY': '<i class="fas fa-truck me-1"></i>',
-                'DELIVERED': '<i class="fas fa-check-circle me-1"></i>',
-                'CANCELLED': '<i class="fas fa-times-circle me-1"></i>'
-            };
-            return statusIcons[status] || '<i class="fas fa-question me-1"></i>';
-        }
-        
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            document.getElementById('orderDetailsContent').innerHTML = content;
+            new bootstrap.Modal(document.getElementById('orderDetailsModal')).show();
         }
     </script>
 </body>

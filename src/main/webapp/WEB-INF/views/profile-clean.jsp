@@ -165,7 +165,7 @@
                                     </div>
                                 </c:if>
 
-                                <form action="${pageContext.request.contextPath}/profile/update" method="post" id="profileForm">
+                                <form action="${pageContext.request.contextPath}/profile" method="post" id="profileForm">
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label for="fullName" class="form-label">

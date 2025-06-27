@@ -1,26 +1,39 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>User Management - Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - FoodDelivery Admin</title>
+    
+    <!-- External CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/resources/css/global-styles.css">
 </head>
-<body>    <!-- Navigation -->    <nav class="navbar navbar-expand-lg navbar-dark bg-danger">
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand" href="${pageContext.request.contextPath}/admin/dashboard">
-                <i class="fas fa-utensils me-2"></i>Food Delivery System
+                <i class="fas fa-utensils me-2"></i>FoodDelivery
             </a>
+            
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
+            
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="${pageContext.request.contextPath}/admin/dashboard">
-                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                            <i class="fas fa-home me-1"></i>Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
@@ -32,9 +45,10 @@
                         <a class="nav-link" href="${pageContext.request.contextPath}/admin/restaurants">
                             <i class="fas fa-store me-1"></i>Restaurants
                         </a>
-                    </li>                    <li class="nav-item">
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="${pageContext.request.contextPath}/admin/orders">
-                            <i class="fas fa-shopping-cart me-1"></i>Orders
+                            <i class="fas fa-receipt me-1"></i>Orders
                         </a>
                     </li>
                     <li class="nav-item">
@@ -43,256 +57,283 @@
                         </a>
                     </li>
                 </ul>
-                <ul class="navbar-nav">                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user me-1"></i>${sessionScope.user.fullName}
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                            <i id="theme-icon" class="fas fa-moon"></i>
+                        </button>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user me-1"></i><c:out value="${sessionScope.user.fullName}" default="Admin"/>
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/profile">Profile</a></li>
+                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/profile">
+                                <i class="fas fa-user-edit me-2"></i>Profile
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/logout">Logout</a></li>
+                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/logout">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a></li>
                         </ul>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
-    
-    <div class="container mt-4">
-        <div class="row">
+
+    <div class="container-fluid mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
             <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h2>User Management</h2>
-                        <p class="lead">Manage all platform users</p>
-                    </div>
-                    <div>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                            <i class="fas fa-user-plus me-1"></i>Add Restaurant Staff
-                        </button>
-                    </div>
+                <div class="section-header">
+                    <h2><i class="fas fa-users me-2"></i>User Management</h2>
+                    <p>Manage system users, customers, and restaurant staff</p>
                 </div>
             </div>
         </div>
-        
+
         <!-- Flash Messages -->
         <c:if test="${not empty success}">
-            <div class="row mt-3">
-                <div class="col-12">
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="fas fa-check-circle me-2"></i>${success}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i><c:out value="${success}"/>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         </c:if>
-        
         <c:if test="${not empty error}">
-            <div class="row mt-3">
-                <div class="col-12">
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i>${error}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i><c:out value="${error}"/>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         </c:if>
-        
-        <div class="row mt-4">
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                    <i class="fas fa-user-plus me-2"></i>Add New User
+                </button>
+            </div>
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" placeholder="Search users..." id="searchInput">
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="row">
             <div class="col-12">
-                <div class="table-responsive">
-                    <table class="table table-striped">                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Username</th>
-                                <th>Full Name</th>
-                                <th>Email</th>
-                                <th>Role</th>
-                                <th>Restaurant</th>
-                                <th>Status</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <c:forEach var="user" items="${users}">
-                                <tr>
-                                    <td>${user.id}</td>
-                                    <td>${user.username}</td>
-                                    <td>${user.fullName}</td>
-                                    <td>${user.email}</td>                                    <td>
-                                        <span class="badge 
-                                            <c:choose>
-                                                <c:when test="${user.role == 'ADMIN'}">bg-danger</c:when>
-                                                <c:when test="${user.role == 'RESTAURANT_STAFF'}">bg-success</c:when>
-                                                <c:otherwise>bg-primary</c:otherwise>
-                                            </c:choose>
-                                        ">${user.role}</span>
-                                    </td>
-                                    <td>
-                                        <c:choose>
-                                            <c:when test="${user.role == 'RESTAURANT_STAFF'}">
-                                                <c:choose>
-                                                    <c:when test="${user.restaurantId != null}">
-                                                        <c:forEach var="restaurant" items="${restaurants}">
-                                                            <c:if test="${restaurant.id == user.restaurantId}">
-                                                                <span class="badge bg-info">${restaurant.name}</span>
-                                                            </c:if>
-                                                        </c:forEach>
-                                                    </c:when>
-                                                    <c:otherwise>
-                                                        <span class="badge bg-warning text-dark">Unassigned</span>
-                                                    </c:otherwise>
-                                                </c:choose>
-                                            </c:when>
-                                            <c:otherwise>
-                                                <span class="text-muted">N/A</span>
-                                            </c:otherwise>
-                                        </c:choose>
-                                    </td>
-                                    <td>
-                                        <c:if test="${user.active}">
-                                            <span class="badge bg-success">Active</span>
-                                        </c:if>
-                                        <c:if test="${!user.active}">
-                                            <span class="badge bg-danger">Inactive</span>
-                                        </c:if>
-                                    </td>
-                                    <td>${user.createdAt}</td>                                    <td>
-                                        <c:if test="${user.role != 'ADMIN'}">
-                                            <form action="${pageContext.request.contextPath}/admin/users/${user.id}/toggle" method="post" style="display: inline;">
-                                                <button type="submit" class="btn btn-sm 
-                                                    <c:if test="${user.active}">btn-outline-warning</c:if>
-                                                    <c:if test="${!user.active}">btn-outline-success</c:if>
-                                                ">
-                                                    <c:if test="${user.active}">Deactivate</c:if>
-                                                    <c:if test="${!user.active}">Activate</c:if>
-                                                </button>
-                                            </form>
-                                        </c:if>
-                                                          <!-- Restaurant Assignment for RESTAURANT_STAFF -->
-                        <c:if test="${user.role == 'RESTAURANT_STAFF'}">
-                            <button type="button" class="btn btn-sm btn-outline-primary ms-1" 
-                                    data-bs-toggle="modal" data-bs-target="#assignModal${user.id}">
-                                <i class="fas fa-store"></i> 
-                                <c:choose>
-                                    <c:when test="${user.restaurantId != null}">Change Restaurant</c:when>
-                                    <c:otherwise>Assign Restaurant</c:otherwise>
-                                </c:choose>
-                            </button>
-                            
-                            <!-- Unassign Button (only if user is assigned) -->
-                            <c:if test="${user.restaurantId != null}">
-                                <form action="${pageContext.request.contextPath}/admin/users/${user.id}/unassign-restaurant" method="post" style="display: inline;">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger ms-1" 
-                                            onclick="return confirm('Are you sure you want to unassign this staff member from their restaurant?')">
-                                        <i class="fas fa-unlink"></i> Unassign
-                                    </button>
-                                </form>
-                            </c:if>
-                                            
-                                            <!-- Assignment Modal -->
-                                            <div class="modal fade" id="assignModal${user.id}" tabindex="-1">
-                                                <div class="modal-dialog">
-                                                    <div class="modal-content">
-                                                        <div class="modal-header">
-                                                            <h5 class="modal-title">Assign Restaurant to ${user.fullName}</h5>
-                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                        </div>
-                                                        <form action="${pageContext.request.contextPath}/admin/users/${user.id}/assign-restaurant" method="post">
-                                                            <div class="modal-body">
-                                                                <div class="mb-3">
-                                                                    <label for="restaurantId${user.id}" class="form-label">Select Restaurant</label>
-                                                                    <select class="form-select" id="restaurantId${user.id}" name="restaurantId" required>
-                                                                        <option value="">-- Select Restaurant --</option>
-                                                                        <c:forEach var="restaurant" items="${restaurants}">
-                                                                            <option value="${restaurant.id}" 
-                                                                                    <c:if test="${restaurant.id == user.restaurantId}">selected</c:if>>
-                                                                                ${restaurant.name} (${restaurant.cuisineType})
-                                                                            </option>
-                                                                        </c:forEach>
-                                                                    </select>
-                                                                </div>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                                <button type="submit" class="btn btn-primary">Assign</button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-list me-2"></i>All Users</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Username</th>
+                                        <th>Full Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <c:forEach var="user" items="${users}">
+                                        <tr>
+                                            <td><c:out value="${user.id}"/></td>
+                                            <td><c:out value="${user.username}"/></td>
+                                            <td><c:out value="${user.fullName}"/></td>
+                                            <td><c:out value="${user.email}"/></td>
+                                            <td>
+                                                <span class="badge role-badge">
+                                                    <c:choose>
+                                                        <c:when test="${user.role.name() == 'ADMIN'}">
+                                                            <i class="fas fa-shield-alt me-1"></i>Admin
+                                                        </c:when>
+                                                        <c:when test="${user.role.name() == 'RESTAURANT_STAFF'}">
+                                                            <i class="fas fa-store me-1"></i>Restaurant Staff
+                                                        </c:when>
+                                                        <c:otherwise>
+                                                            <i class="fas fa-user me-1"></i>Customer
+                                                        </c:otherwise>
+                                                    </c:choose>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-outline-primary edit-user-btn" 
+                                                            data-id="<c:out value='${user.id}'/>"
+                                                            data-username="<c:out value='${user.username}'/>"
+                                                            data-fullname="<c:out value='${user.fullName}'/>"
+                                                            data-email="<c:out value='${user.email}'/>"
+                                                            data-role="<c:out value='${user.role.name()}'/>">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <c:if test="${user.id != sessionScope.user.id}">
+                                                        <button class="btn btn-sm btn-outline-danger delete-user-btn" 
+                                                                data-id="<c:out value='${user.id}'/>"
+                                                                data-username="<c:out value='${user.username}'/>">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </c:if>
                                                 </div>
-                                            </div>
-                                        </c:if>
-                                    </td>
-                                </tr>
-                            </c:forEach>
-                            <c:if test="${empty users}">
-                                <tr>
-                                    <td colspan="8" class="text-center text-muted">No users found</td>
-                                </tr>
-                            </c:if>
-                        </tbody>
-                    </table>
+                                            </td>
+                                        </tr>
+                                    </c:forEach>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <!-- Add User Modal -->
-    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addUserModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addUserModalLabel">
-                        <i class="fas fa-user-plus me-2"></i>Add Restaurant Staff
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add New User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form action="${pageContext.request.contextPath}/admin/users/add" method="post">
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
                             <input type="text" class="form-control" id="username" name="username" required>
-                            <div class="form-text">Must be unique across the platform</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                            <div class="form-text">Must be unique across the platform</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required minlength="6">
-                            <div class="form-text">Minimum 6 characters</div>
                         </div>
                         <div class="mb-3">
                             <label for="fullName" class="form-label">Full Name</label>
                             <input type="text" class="form-control" id="fullName" name="fullName" required>
                         </div>
                         <div class="mb-3">
-                            <label for="restaurantId" class="form-label">Assign to Restaurant (Optional)</label>
-                            <select class="form-select" id="restaurantId" name="restaurantId">
-                                <option value="">-- No Assignment --</option>
-                                <c:forEach var="restaurant" items="${restaurants}">
-                                    <option value="${restaurant.id}">${restaurant.name}</option>
-                                </c:forEach>
-                            </select>
-                            <div class="form-text">Can be assigned later from the user list</div>
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
                         </div>
-                        <!-- Role is hardcoded to RESTAURANT_STAFF -->
-                        <input type="hidden" name="role" value="restaurant_staff">
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="role" class="form-label">Role</label>
+                            <select class="form-select" id="role" name="role" required>
+                                <option value="CUSTOMER">Customer</option>
+                                <option value="RESTAURANT_STAFF">Restaurant Staff</option>
+                                <option value="ADMIN">Admin</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-user-plus me-1"></i>Add Staff Member
-                        </button>
+                        <button type="submit" class="btn btn-primary">Add User</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Edit User Modal -->
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Edit User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="${pageContext.request.contextPath}/admin/users/edit" method="post">
+                    <div class="modal-body">
+                        <input type="hidden" id="editUserId" name="id">
+                        <div class="mb-3">
+                            <label for="editUsername" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="editUsername" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editFullName" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="editFullName" name="fullName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="editEmail" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editRole" class="form-label">Role</label>
+                            <select class="form-select" id="editRole" name="role" required>
+                                <option value="CUSTOMER">Customer</option>
+                                <option value="RESTAURANT_STAFF">Restaurant Staff</option>
+                                <option value="ADMIN">Admin</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="${pageContext.request.contextPath}/resources/js/global-scripts.js"></script>
+    <script>
+        // Edit user functionality
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.edit-user-btn')) {
+                const btn = e.target.closest('.edit-user-btn');
+                const id = btn.getAttribute('data-id');
+                const username = btn.getAttribute('data-username');
+                const fullName = btn.getAttribute('data-fullname');
+                const email = btn.getAttribute('data-email');
+                const role = btn.getAttribute('data-role');
+                
+                document.getElementById('editUserId').value = id;
+                document.getElementById('editUsername').value = username;
+                document.getElementById('editFullName').value = fullName;
+                document.getElementById('editEmail').value = email;
+                document.getElementById('editRole').value = role;
+                new bootstrap.Modal(document.getElementById('editUserModal')).show();
+            }
+            
+            if (e.target.closest('.delete-user-btn')) {
+                const btn = e.target.closest('.delete-user-btn');
+                const id = btn.getAttribute('data-id');
+                const username = btn.getAttribute('data-username');
+                
+                if (confirm(`Are you sure you want to delete user "${username}"?`)) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '${pageContext.request.contextPath}/admin/users/delete';
+                    
+                    const idInput = document.createElement('input');
+                    idInput.type = 'hidden';
+                    idInput.name = 'id';
+                    idInput.value = id;
+                    form.appendChild(idInput);
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            }
+        });
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const filter = this.value.toLowerCase();
+            const rows = document.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(filter) ? '' : 'none';
+            });
+        });
+    </script>
 </body>
 </html>

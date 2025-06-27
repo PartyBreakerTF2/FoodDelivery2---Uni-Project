@@ -1,45 +1,28 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Restaurant - Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .form-section {
-            background-color: #f8f9fa;
-            border-radius: 0.375rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .section-title {
-            color: #495057;
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            border-bottom: 2px solid #dee2e6;
-            padding-bottom: 0.5rem;
-        }
-        .required {
-            color: #dc3545;
-        }
-        .form-help {
-            font-size: 0.875rem;
-            color: #6c757d;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/resources/css/global-styles.css" rel="stylesheet">
 </head>
-<body>    <nav class="navbar navbar-expand-lg navbar-dark bg-danger">
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
         <div class="container">
             <a class="navbar-brand" href="${pageContext.request.contextPath}/admin/dashboard">
-                <i class="fas fa-utensils me-2"></i>Food Delivery System
+                <i class="fas fa-utensils me-2"></i>FoodDelivery
             </a>
+            
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
+            
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
@@ -68,18 +51,31 @@
                         </a>
                     </li>
                 </ul>
-                <ul class="navbar-nav">                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user me-1"></i>${sessionScope.user.fullName}
+                
+                <ul class="navbar-nav align-items-center">
+                    <li class="nav-item me-3">
+                        <button class="theme-toggle btn p-0" onclick="toggleTheme()" title="Toggle theme">
+                            <i class="fas fa-moon" id="themeIcon"></i>
+                        </button>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" 
+                           role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-2"></i>
+                            <c:out value="${sessionScope.user.fullName}" default="Admin"/>
                         </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/profile">
-                                <i class="fas fa-user me-2"></i>Profile
-                            </a></li>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item" href="${pageContext.request.contextPath}/admin/profile">
+                                    <i class="fas fa-user me-2"></i>Profile
+                                </a>
+                            </li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/logout">
-                                <i class="fas fa-sign-out-alt me-2"></i>Logout
-                            </a></li>
+                            <li>
+                                <a class="dropdown-item" href="${pageContext.request.contextPath}/logout">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                </a>
+                            </li>
                         </ul>
                     </li>
                 </ul>
@@ -87,39 +83,35 @@
         </div>
     </nav>
 
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h2><i class="fas fa-plus-circle me-2"></i>Add New Restaurant</h2>
-                        <p class="text-muted mb-0">Create a new restaurant profile for the platform</p>
-                    </div>
-                    <div>
-                        <a href="${pageContext.request.contextPath}/admin/restaurants" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left me-1"></i>Back to Restaurants
-                        </a>
-                    </div>
+    <div class="container" style="margin-top: 100px;">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-2">
+                        <i class="fas fa-plus-circle me-2"></i>Add New Restaurant
+                    </h1>
+                    <p class="mb-0">Create a new restaurant profile for the platform</p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <i class="fas fa-store fa-3x"></i>
                 </div>
             </div>
         </div>
 
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="fas fa-store me-2"></i>Restaurant Information</h5>
-                    </div>
-                    <div class="card-body">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="glass-card">
+                    <div class="card-body p-4">
                         <c:if test="${not empty success}">
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <div class="alert alert-success alert-dismissible fade show glass-card mb-4" role="alert">
                                 <i class="fas fa-check-circle me-2"></i>${success}
                                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                             </div>
                         </c:if>
                         
                         <c:if test="${not empty error}">
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <div class="alert alert-danger alert-dismissible fade show glass-card mb-4" role="alert">
                                 <i class="fas fa-exclamation-circle me-2"></i>${error}
                                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                             </div>
@@ -127,10 +119,11 @@
 
                         <form action="${pageContext.request.contextPath}/admin/restaurants/add" method="post" id="restaurantForm">
                             <!-- Basic Information Section -->
-                            <div class="form-section">
-                                <h6 class="section-title">
-                                    <i class="fas fa-info-circle me-2"></i>Basic Information
-                                </h6>
+                            <div class="glass-card mb-4">
+                                <div class="card-body">
+                                    <h6 class="section-title">
+                                        <i class="fas fa-info-circle me-2"></i>Basic Information
+                                    </h6>
                                 
                                 <div class="row">
                                     <div class="col-md-6">
@@ -182,13 +175,15 @@
                                               placeholder="Describe the restaurant, its specialties, and atmosphere" maxlength="1000"></textarea>
                                     <div class="form-help">Optional description to help customers understand what makes this restaurant special</div>
                                 </div>
+                                </div>
                             </div>
 
                             <!-- Contact Information Section -->
-                            <div class="form-section">
-                                <h6 class="section-title">
-                                    <i class="fas fa-address-book me-2"></i>Contact Information
-                                </h6>
+                            <div class="glass-card mb-4">
+                                <div class="card-body">
+                                    <h6 class="section-title">
+                                        <i class="fas fa-address-book me-2"></i>Contact Information
+                                    </h6>
                                 
                                 <div class="row">
                                     <div class="col-md-6">
@@ -221,13 +216,15 @@
                                               placeholder="123 Main Street, City, State, ZIP Code" maxlength="500"></textarea>
                                     <div class="form-help">Full address including street, city, state, and ZIP code</div>
                                 </div>
+                                </div>
                             </div>
 
                             <!-- Business Information Section -->
-                            <div class="form-section">
-                                <h6 class="section-title">
-                                    <i class="fas fa-business-time me-2"></i>Business Information
-                                </h6>
+                            <div class="glass-card mb-4">
+                                <div class="card-body">
+                                    <h6 class="section-title">
+                                        <i class="fas fa-business-time me-2"></i>Business Information
+                                    </h6>
                                 
                                 <div class="row">
                                     <div class="col-md-6">
@@ -275,22 +272,27 @@
                                         </div>
                                     </div>
                                 </div>
+                                </div>
                             </div>
 
                             <!-- Form Actions -->
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
-                                        <i class="fas fa-undo me-1"></i>Reset Form
-                                    </button>
-                                </div>
-                                <div>
-                                    <a href="${pageContext.request.contextPath}/admin/restaurants" class="btn btn-secondary me-2">
-                                        <i class="fas fa-times me-1"></i>Cancel
-                                    </a>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-plus me-1"></i>Add Restaurant
-                                    </button>
+                            <div class="glass-card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
+                                                <i class="fas fa-undo me-1"></i>Reset Form
+                                            </button>
+                                        </div>
+                                        <div>
+                                            <a href="${pageContext.request.contextPath}/admin/restaurants" class="btn btn-secondary me-2">
+                                                <i class="fas fa-times me-1"></i>Cancel
+                                            </a>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-plus me-1"></i>Add Restaurant
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </form>
@@ -329,9 +331,14 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="${pageContext.request.contextPath}/resources/js/global-scripts.js"></script>
     <script>
-        // Form validation and enhancement
+        // Initialize theme on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // Load saved form data
+            loadFormData();
+            
+            // Form validation and enhancement
             const form = document.getElementById('restaurantForm');
             const phoneInput = document.getElementById('phone');
             const emailInput = document.getElementById('email');
