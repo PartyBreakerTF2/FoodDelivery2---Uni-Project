@@ -24,8 +24,10 @@ import com.uef.food.model.Order;
 import com.uef.food.model.OrderItem;
 import com.uef.food.model.OrderStatus;
 import com.uef.food.model.Restaurant;
+import com.uef.food.model.RestaurantCart;
 import com.uef.food.model.User;
 import com.uef.food.model.UserRole;
+import com.uef.food.service.CartService;
 import com.uef.food.service.MenuItemService;
 import com.uef.food.service.OrderItemService;
 import com.uef.food.service.OrderService;
@@ -47,6 +49,9 @@ public class CustomerController {
     private OrderService orderService;
       @Autowired
     private OrderItemService orderItemService;
+    
+    @Autowired
+    private CartService cartService;
     
     @Autowired
     private RatingService ratingService;
@@ -120,7 +125,7 @@ public class CustomerController {
         }
         
         List<MenuItem> menuItems = menuItemService.findByRestaurant(id);
-        
+
         // Get categories specific to this restaurant
         List<String> categories = menuItems.stream()
             .filter(item -> item.getCategory() != null && !item.getCategory().trim().isEmpty())
@@ -139,18 +144,159 @@ public class CustomerController {
     
     @PostMapping("/cart/add")
     @ResponseBody
-    public String addToCart(@RequestParam Long menuItemId,
-                           @RequestParam Integer quantity,
-                           HttpSession session) {
-        User user = (User) session.getAttribute("user");
-        if (user == null) {
-            return "error";
+    public Map<String, Object> addToCart(@RequestParam Long restaurantId,
+                                        @RequestParam String restaurantName,
+                                        @RequestParam String itemId,
+                                        @RequestParam String itemName,
+                                        @RequestParam Double itemPrice,
+                                        @RequestParam Integer quantity,
+                                        HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null) {
+                response.put("success", false);
+                response.put("message", "Please log in to add items to cart");
+                return response;
+            }
+            
+            cartService.addToCart(session, restaurantId, restaurantName, itemId, itemName, itemPrice, quantity);
+            
+            // Get updated cart
+            RestaurantCart cart = cartService.getRestaurantCart(session, restaurantId, restaurantName);
+            
+            response.put("success", true);
+            response.put("message", "Item added to cart successfully");
+            response.put("cartItemCount", cart.getItemCount());
+            response.put("cartSubtotal", cart.getSubtotal());
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error adding item to cart: " + e.getMessage());
         }
         
-        // For simplicity, we'll store cart in session
-        // In a real application, you might use a separate Cart entity
+        return response;
+    }
+    
+    @PostMapping("/cart/remove")
+    @ResponseBody
+    public Map<String, Object> removeFromCart(@RequestParam Long restaurantId,
+                                             @RequestParam String itemId,
+                                             HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
         
-        return "success";
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null) {
+                response.put("success", false);
+                response.put("message", "Please log in");
+                return response;
+            }
+            
+            cartService.removeFromCart(session, restaurantId, itemId);
+            
+            response.put("success", true);
+            response.put("message", "Item removed from cart");
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error removing item from cart: " + e.getMessage());
+        }
+        
+        return response;
+    }
+    
+    @PostMapping("/cart/update")
+    @ResponseBody
+    public Map<String, Object> updateCartItem(@RequestParam Long restaurantId,
+                                             @RequestParam String itemId,
+                                             @RequestParam Integer quantity,
+                                             HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null) {
+                response.put("success", false);
+                response.put("message", "Please log in");
+                return response;
+            }
+            
+            cartService.updateItemQuantity(session, restaurantId, itemId, quantity);
+            
+            response.put("success", true);
+            response.put("message", "Cart updated successfully");
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error updating cart: " + e.getMessage());
+        }
+        
+        return response;
+    }
+    
+    @PostMapping("/cart/clear")
+    @ResponseBody
+    public Map<String, Object> clearCart(@RequestParam Long restaurantId,
+                                        HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null) {
+                response.put("success", false);
+                response.put("message", "Please log in");
+                return response;
+            }
+            
+            cartService.clearRestaurantCart(session, restaurantId);
+            
+            response.put("success", true);
+            response.put("message", "Cart cleared successfully");
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error clearing cart: " + e.getMessage());
+        }
+        
+        return response;
+    }
+    
+    @GetMapping("/cart/{restaurantId}")
+    @ResponseBody
+    public Map<String, Object> getCart(@PathVariable Long restaurantId,
+                                      HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            User user = (User) session.getAttribute("user");
+            if (user == null) {
+                response.put("success", false);
+                response.put("message", "Please log in");
+                return response;
+            }
+            
+            Restaurant restaurant = restaurantService.findById(restaurantId);
+            if (restaurant == null) {
+                response.put("success", false);
+                response.put("message", "Restaurant not found");
+                return response;
+            }
+            
+            RestaurantCart cart = cartService.getRestaurantCart(session, restaurantId, restaurant.getName());
+            Map<Long, RestaurantCart> otherCarts = cartService.getOtherCarts(session, restaurantId);
+            
+            response.put("success", true);
+            response.put("cart", cart);
+            response.put("otherCarts", otherCarts);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error getting cart: " + e.getMessage());
+        }
+        
+        return response;
     }      @GetMapping("/orders")
     public String viewOrders(HttpSession session, Model model) {
         User user = (User) session.getAttribute("user");
@@ -190,23 +336,44 @@ public class CustomerController {
                 response.put("message", "Please log in to place an order");
                 return response;
             }
-              // Extract order data
+            // Extract order data
             Long restaurantId = Long.valueOf(orderData.get("restaurantId").toString());
             String deliveryAddress = (String) orderData.get("deliveryAddress");
             String specialInstructions = (String) orderData.get("specialInstructions");
-            Double subtotal = Double.valueOf(orderData.get("subtotal").toString());
-            Double total = Double.valueOf(orderData.get("total").toString());
-            
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> items = (List<Map<String, Object>>) orderData.get("items");
             
             // Validate restaurant exists and is active
             Restaurant restaurant = restaurantService.findById(restaurantId);
-            if (restaurant == null || !restaurant.isActive()) {
+            if (restaurant == null) {
+                response.put("success", false);
+                response.put("message", "Restaurant not found");
+                return response;
+            }
+            
+            if (!restaurant.isActive()) {
                 response.put("success", false);
                 response.put("message", "Restaurant is currently unavailable");
                 return response;
             }
+            
+            // Validate cart is not empty
+            if (items == null || items.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Your cart is empty");
+                return response;
+            }
+            
+            // Calculate totals from items
+            Double subtotal = 0.0;
+            for (Map<String, Object> item : items) {
+                Double price = Double.valueOf(item.get("price").toString());
+                Integer quantity = Integer.valueOf(item.get("quantity").toString());
+                subtotal += price * quantity;
+            }
+            
+            Double deliveryFee = 2.99;
+            Double total = subtotal + deliveryFee;
             
             // Validate minimum order amount
             if (subtotal < 15.00) {
@@ -229,7 +396,7 @@ public class CustomerController {
             
             // Save order to database
             Order savedOrder = orderService.save(order);            if (savedOrder != null && savedOrder.getId() != null) {
-                // Save order items to order_items table
+                // Save order items from request body
                 for (Map<String, Object> item : items) {
                     OrderItem orderItem = new OrderItem();
                     orderItem.setOrderId(savedOrder.getId());
@@ -249,6 +416,8 @@ public class CustomerController {
                                          " = $" + orderItem.getSubtotal());
                     }
                 }
+                
+                // Note: No cart clearing needed since we're using client-side cart
                 
                 response.put("success", true);
                 response.put("message", "Order placed successfully!");

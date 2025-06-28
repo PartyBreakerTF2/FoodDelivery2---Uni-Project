@@ -88,6 +88,7 @@
             </div>
         </div>
 
+
         <div class="main-content">
             <!-- Menu Section -->
             <div class="menu-section">
@@ -133,6 +134,7 @@
                                                 </div>
                                             </c:if>
                                         </c:forEach>
+
                                     </c:if>
                                 </div>
                             </div>
@@ -277,6 +279,7 @@
     <!-- <script src="${pageContext.request.contextPath}/resources/js/customer-menu.js"></script> -->
     
     <script>
+
         // Initialize essential functions immediately (before external scripts load)
         // Use window.globalCart to ensure it persists across script loads
         if (!window.globalCart) {
@@ -419,6 +422,7 @@
         window.proceedToCheckout = function() {
             // Always use the global cart
             fallbackCart = window.globalCart || [];
+
             
             console.log('proceedToCheckout called, fallbackCart:', fallbackCart);
             console.log('fallbackCart length:', fallbackCart.length);
@@ -592,6 +596,7 @@
             if (themeIcon) {
                 themeIcon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
             }
+
             
             // Initialize global cart if not exists
             if (!window.globalCart) {
