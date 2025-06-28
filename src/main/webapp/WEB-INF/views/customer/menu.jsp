@@ -88,7 +88,6 @@
             </div>
         </div>
 
-
         <div class="main-content">
             <!-- Menu Section -->
             <div class="menu-section">
@@ -116,6 +115,12 @@
                                             <c:if test="${item.category == category}">
                                                 <div class="menu-item">
                                                     <div class="menu-item-content">
+                                                        <div class="menu-item-image">
+                                                            <img src="${pageContext.request.contextPath}/resources/images/menu-items/${item.id}.jpg" 
+                                                                 alt="<c:out value='${item.name}'/>"
+                                                                 onerror="this.src='${pageContext.request.contextPath}/resources/images/menu-items/default.svg'"
+                                                                 loading="lazy">
+                                                        </div>
                                                         <div class="menu-item-info">
                                                             <h5><c:out value="${item.name}"/></h5>
                                                             <c:if test="${not empty item.description}">
@@ -134,7 +139,6 @@
                                                 </div>
                                             </c:if>
                                         </c:forEach>
-
                                     </c:if>
                                 </div>
                             </div>
@@ -279,7 +283,6 @@
     <!-- <script src="${pageContext.request.contextPath}/resources/js/customer-menu.js"></script> -->
     
     <script>
-
         // Initialize essential functions immediately (before external scripts load)
         // Use window.globalCart to ensure it persists across script loads
         if (!window.globalCart) {
@@ -422,7 +425,6 @@
         window.proceedToCheckout = function() {
             // Always use the global cart
             fallbackCart = window.globalCart || [];
-
             
             console.log('proceedToCheckout called, fallbackCart:', fallbackCart);
             console.log('fallbackCart length:', fallbackCart.length);
@@ -596,7 +598,6 @@
             if (themeIcon) {
                 themeIcon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
             }
-
             
             // Initialize global cart if not exists
             if (!window.globalCart) {

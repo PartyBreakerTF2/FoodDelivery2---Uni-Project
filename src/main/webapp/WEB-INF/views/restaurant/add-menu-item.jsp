@@ -94,7 +94,7 @@
                             </div>
                         </c:if>
 
-                        <form action="${pageContext.request.contextPath}/restaurant/menu/add" method="post">
+                        <form action="${pageContext.request.contextPath}/restaurant/menu/add" method="post" enctype="multipart/form-data">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label for="name" class="form-label">
@@ -120,26 +120,49 @@
                                           rows="3" placeholder="Describe the item..."></textarea>
                             </div>
                             
-                            <div class="mb-3">
-                                <label for="category" class="form-label">
-                                    <i class="fas fa-tags me-2"></i>Category <span class="text-danger">*</span>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="category" class="form-label">
+                                        <i class="fas fa-tags me-2"></i>Category <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select" id="category" name="category" required>
+                                        <option value="">Select Category</option>
+                                        <option value="Pizza">Pizza</option>
+                                        <option value="Burger">Burger</option>
+                                        <option value="Pasta">Pasta</option>
+                                        <option value="Salad">Salad</option>
+                                        <option value="Fish">Fish</option>
+                                        <option value="Meat">Meat</option>
+                                        <option value="Curry">Curry</option>
+                                        <option value="Sushi">Sushi</option>
+                                        <option value="Appetizer">Appetizer</option>
+                                        <option value="Side">Side Dish</option>
+                                        <option value="Dessert">Dessert</option>
+                                        <option value="Beverage">Beverage</option>
+                                        <option value="Bowl">Bowl</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="itemImage" class="form-label">
+                                        <i class="fas fa-image me-2"></i>Item Image
+                                    </label>
+                                    <input type="file" class="form-control" id="itemImage" name="itemImage" 
+                                           accept="image/*" onchange="previewImage(this)">
+                                    <div class="form-text">Upload an image for this menu item (JPG, PNG, WEBP)</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Image Preview -->
+                            <div class="mb-3" id="imagePreviewContainer" style="display: none;">
+                                <label class="form-label">
+                                    <i class="fas fa-eye me-2"></i>Image Preview
                                 </label>
-                                <select class="form-select" id="category" name="category" required>
-                                    <option value="">Select Category</option>
-                                    <option value="Pizza">Pizza</option>
-                                    <option value="Burger">Burger</option>
-                                    <option value="Pasta">Pasta</option>
-                                    <option value="Salad">Salad</option>
-                                    <option value="Fish">Fish</option>
-                                    <option value="Meat">Meat</option>
-                                    <option value="Curry">Curry</option>
-                                    <option value="Sushi">Sushi</option>
-                                    <option value="Appetizer">Appetizer</option>
-                                    <option value="Side">Side Dish</option>
-                                    <option value="Dessert">Dessert</option>
-                                    <option value="Beverage">Beverage</option>
-                                    <option value="Bowl">Bowl</option>
-                                </select>
+                                <div class="image-preview-wrapper">
+                                    <img id="imagePreview" src="" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                                    <button type="button" class="btn btn-sm btn-outline-danger ms-3" onclick="removeImage()">
+                                        <i class="fas fa-times me-1"></i>Remove
+                                    </button>
+                                </div>
                             </div>
                             
                             <div class="d-flex gap-2 pt-3">
@@ -179,6 +202,33 @@
                 return false;
             }
         });
+
+        function previewImage(input) {
+            const file = input.files[0];
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const preview = document.getElementById('imagePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                previewContainer.style.display = 'none';
+            }
+        }
+        
+        function removeImage() {
+            const input = document.getElementById('itemImage');
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const preview = document.getElementById('imagePreview');
+            
+            input.value = '';
+            preview.src = '';
+            previewContainer.style.display = 'none';
+        }
     </script>
 </body>
 </html>
