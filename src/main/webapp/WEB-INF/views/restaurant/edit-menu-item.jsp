@@ -107,7 +107,8 @@
                             </div>
                         </c:if>
 
-                        <form action="${pageContext.request.contextPath}/restaurant/menu/edit/${menuItem.id}" method="post" id="menuItemForm">
+                        <form action="${pageContext.request.contextPath}/restaurant/menu/edit/${menuItem.id}" method="post" 
+                              enctype="multipart/form-data" id="menuItemForm">
                             <!-- Basic Information Section -->
                             <div class="glass-card mb-4">
                                 <div class="card-body">
@@ -158,6 +159,46 @@
                                         <textarea class="form-control" id="description" name="description" rows="3" 
                                                   placeholder="Describe the menu item, ingredients, and preparation style" maxlength="1000"><c:out value="${menuItem.description}"/></textarea>
                                         <div class="form-help">Detailed description to help customers understand the item</div>
+                                    </div>
+                                    
+                                    <!-- Image Section -->
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="itemImage" class="form-label">
+                                                    <i class="fas fa-image me-2"></i>Item Image
+                                                </label>
+                                                <input type="file" class="form-control" id="itemImage" name="itemImage" 
+                                                       accept="image/*" onchange="previewImage(this)">
+                                                <div class="form-help">Upload a new image to replace the current one</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <!-- Current Image Display -->
+                                            <div class="mb-3">
+                                                <label class="form-label">Current Image</label>
+                                                <div class="current-image-wrapper">
+                                                    <img id="currentImage" 
+                                                         src="${pageContext.request.contextPath}/resources/images/menu-items/${menuItem.id}.jpg?v=${System.currentTimeMillis()}" 
+                                                         alt="<c:out value='${menuItem.name}'/>"
+                                                         onerror="this.src='${pageContext.request.contextPath}/resources/images/menu-items/default.svg'"
+                                                         style="max-width: 150px; max-height: 150px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Image Preview -->
+                                    <div class="mb-3" id="imagePreviewContainer" style="display: none;">
+                                        <label class="form-label">
+                                            <i class="fas fa-eye me-2"></i>New Image Preview
+                                        </label>
+                                        <div class="image-preview-wrapper">
+                                            <img id="imagePreview" src="" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                                            <button type="button" class="btn btn-sm btn-outline-danger ms-3" onclick="removeImage()">
+                                                <i class="fas fa-times me-1"></i>Remove
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -225,6 +266,33 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="${pageContext.request.contextPath}/resources/js/global-scripts.js"></script>
     <script>
+        function previewImage(input) {
+            const file = input.files[0];
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const preview = document.getElementById('imagePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                previewContainer.style.display = 'none';
+            }
+        }
+        
+        function removeImage() {
+            const input = document.getElementById('itemImage');
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const preview = document.getElementById('imagePreview');
+            
+            input.value = '';
+            preview.src = '';
+            previewContainer.style.display = 'none';
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             // Form validation and enhancement
@@ -232,11 +300,26 @@
             
             // Form submission validation
             form.addEventListener('submit', function(e) {
+                console.log('Form submission started');
+                
+                // Debug form data
+                const formData = new FormData(form);
+                console.log('Form data:');
+                for (let [key, value] of formData.entries()) {
+                    console.log(key + ': ' + value);
+                }
+                
+                // Use browser's built-in validation
                 if (!form.checkValidity()) {
                     e.preventDefault();
                     e.stopPropagation();
-                }
-                form.classList.add('was-validated');
+                    console.log('Form validation failed - using browser validation');
+                    form.classList.add('was-validated');
+                    return false;
+                } 
+                
+                console.log('Form validation passed, submitting...');
+                return true;
             });
             
             // Real-time validation feedback

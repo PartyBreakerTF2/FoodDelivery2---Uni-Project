@@ -1,5 +1,10 @@
 package com.uef.food.controller;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -13,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.uef.food.model.MenuItem;
@@ -125,6 +131,7 @@ public class RestaurantController {
                              @RequestParam String description,
                              @RequestParam Double price,
                              @RequestParam String category,
+                             @RequestParam(required = false) MultipartFile itemImage,
                              HttpSession session,
                              Model model) {
         User user = (User) session.getAttribute("user");
@@ -141,7 +148,18 @@ public class RestaurantController {
         Restaurant restaurant = restaurantService.findById(user.getRestaurantId());
         if (restaurant != null) {
             MenuItem menuItem = new MenuItem(name, description, price, category, restaurant);
-            menuItemService.save(menuItem);
+            MenuItem savedItem = menuItemService.save(menuItem);
+            
+            // Handle image upload if provided
+            if (itemImage != null && !itemImage.isEmpty()) {
+                try {
+                    saveMenuItemImage(itemImage, savedItem.getId());
+                } catch (Exception e) {
+                    System.err.println("Error saving image for menu item " + savedItem.getId() + ": " + e.getMessage());
+                    // Don't fail the whole operation if image save fails
+                }
+            }
+            
             model.addAttribute("success", "Menu item added successfully");
         } else {
             model.addAttribute("error", "Restaurant not found.");
@@ -167,33 +185,121 @@ public class RestaurantController {
     }
       @PostMapping("/menu/edit/{id}")
     public String editMenuItem(@PathVariable Long id,
-                              @RequestParam String name,
-                              @RequestParam String description,
-                              @RequestParam Double price,
-                              @RequestParam String category,
-                              @RequestParam boolean available,
-                              HttpSession session) {
+                              @RequestParam("name") String name,
+                              @RequestParam("description") String description,
+                              @RequestParam("price") Double price,
+                              @RequestParam("category") String category,
+                              @RequestParam("available") boolean available,
+                              @RequestParam(value = "itemImage", required = false) MultipartFile itemImage,
+                              HttpSession session,
+                              RedirectAttributes redirectAttributes) {
+        
+        System.out.println("DEBUG: === EDIT MENU ITEM METHOD CALLED ===");
+        System.out.println("DEBUG: Menu Item ID: " + id);
+        System.out.println("DEBUG: Received parameters:");
+        System.out.println("  name: " + name);
+        System.out.println("  description: " + description);
+        System.out.println("  price: " + price);
+        System.out.println("  category: " + category);
+        System.out.println("  available: " + available);
+        System.out.println("  itemImage: " + (itemImage != null ? itemImage.getOriginalFilename() : "null"));
+        System.out.println("  itemImage isEmpty: " + (itemImage != null ? itemImage.isEmpty() : "null"));
+        System.out.println("  itemImage size: " + (itemImage != null ? itemImage.getSize() : "null"));
+        
         User user = (User) session.getAttribute("user");
         if (user == null || user.getRole() != UserRole.RESTAURANT_STAFF) {
             return "redirect:/login";
         }
         
-        MenuItem menuItem = menuItemService.findById(id);
-        if (menuItem != null) {
-            // Security check: ensure the menu item belongs to the staff's restaurant
-            if (user.getRestaurantId() == null || !user.getRestaurantId().equals(menuItem.getRestaurantId())) {
-                return "redirect:/restaurant/menu?error=unauthorized";
+        try {
+            MenuItem menuItem = menuItemService.findById(id);
+            if (menuItem != null) {
+                // Security check: ensure the menu item belongs to the staff's restaurant
+                if (user.getRestaurantId() == null || !user.getRestaurantId().equals(menuItem.getRestaurantId())) {
+                    redirectAttributes.addFlashAttribute("error", "Unauthorized access to menu item");
+                    return "redirect:/restaurant/menu";
+                }
+                
+                menuItem.setName(name);
+                menuItem.setDescription(description);
+                menuItem.setPrice(price);
+                menuItem.setCategory(category);
+                menuItem.setAvailable(available);
+                menuItemService.save(menuItem);
+                
+                // Handle image upload if provided
+                if (itemImage != null && !itemImage.isEmpty()) {
+                    System.out.println("DEBUG: Processing image upload - filename: " + itemImage.getOriginalFilename() + ", size: " + itemImage.getSize());
+                    try {
+                        saveMenuItemImage(itemImage, menuItem.getId());
+                        redirectAttributes.addFlashAttribute("success", "Menu item updated successfully with new image");
+                    } catch (IOException e) {
+                        System.err.println("Error saving image for menu item " + menuItem.getId() + ": " + e.getMessage());
+                        e.printStackTrace();
+                        redirectAttributes.addFlashAttribute("success", "Menu item updated successfully (image upload failed: " + e.getMessage() + ")");
+                    }
+                } else {
+                    System.out.println("DEBUG: No image uploaded or image is empty");
+                    redirectAttributes.addFlashAttribute("success", "Menu item updated successfully");
+                }
+            } else {
+                redirectAttributes.addFlashAttribute("error", "Menu item not found");
             }
-            
-            menuItem.setName(name);
-            menuItem.setDescription(description);
-            menuItem.setPrice(price);
-            menuItem.setCategory(category);
-            menuItem.setAvailable(available);
-            menuItemService.save(menuItem);
+        } catch (Exception e) {
+            System.err.println("Error updating menu item: " + e.getMessage());
+            e.printStackTrace();
+            redirectAttributes.addFlashAttribute("error", "Failed to update menu item: " + e.getMessage());
         }
         
         return "redirect:/restaurant/menu";
+    }
+    
+    /**
+     * Save uploaded image file for a menu item
+     */
+    private void saveMenuItemImage(MultipartFile file, Long menuItemId) throws IOException {
+        if (file == null || file.isEmpty()) {
+            System.out.println("DEBUG: File is null or empty");
+            return;
+        }
+        
+        System.out.println("DEBUG: Starting image save process");
+        System.out.println("DEBUG: File original name: " + file.getOriginalFilename());
+        System.out.println("DEBUG: File size: " + file.getSize());
+        System.out.println("DEBUG: File content type: " + file.getContentType());
+        
+        // Validate file type
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("File must be an image");
+        }
+        
+        // Use absolute path with proper Windows file separators
+        String currentDir = System.getProperty("user.dir");
+        Path uploadPath = Paths.get(currentDir, "src", "main", "webapp", "resources", "images", "menu-items");
+        
+        System.out.println("DEBUG: Current directory: " + currentDir);
+        System.out.println("DEBUG: Upload path: " + uploadPath.toString());
+        System.out.println("DEBUG: Upload path exists: " + Files.exists(uploadPath));
+        
+        // Create directory if it doesn't exist
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+            System.out.println("DEBUG: Created directory: " + uploadPath.toString());
+        }
+        
+        // Save file with menu item ID as filename (always use .jpg for consistency)
+        String fileName = menuItemId + ".jpg";
+        Path filePath = uploadPath.resolve(fileName);
+        
+        System.out.println("DEBUG: Saving to file: " + filePath.toString());
+        
+        // Copy file to destination
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        
+        System.out.println("DEBUG: Image saved successfully for menu item " + menuItemId + ": " + filePath.toString());
+        System.out.println("DEBUG: File exists after save: " + Files.exists(filePath));
+        System.out.println("DEBUG: File size after save: " + Files.size(filePath));
     }
 
     @PostMapping("/menu/delete/{id}")

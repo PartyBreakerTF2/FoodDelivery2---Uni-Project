@@ -16,6 +16,11 @@
             <param-value>/WEB-INF/dispatcher-servlet.xml</param-value>
         </init-param>
         <load-on-startup>1</load-on-startup>
+        <multipart-config>
+            <max-file-size>10485760</max-file-size> <!-- 10MB -->
+            <max-request-size>20971520</max-request-size> <!-- 20MB -->
+            <file-size-threshold>0</file-size-threshold>
+        </multipart-config>
     </servlet>
     <!-- DispatcherServlet handles all requests at “/” -->
     <servlet-mapping>
