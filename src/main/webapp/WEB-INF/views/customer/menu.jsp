@@ -109,12 +109,13 @@
         <div class="row">
             <div class="col-md-9">
                 <h3>Menu</h3>
+                
                   <!-- Category Filter -->
                 <div class="mb-3">
                     <button class="btn btn-outline-secondary btn-sm me-2 category-btn active">All</button>
                     <c:forEach var="category" items="${categories}">
                         <button class="btn btn-outline-secondary btn-sm me-2 category-btn">${category}</button>
-                    </c:forEach>
+                    </c:forEach> 
                 </div>
                 
                 <!-- Menu Items -->
@@ -195,22 +196,112 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let cart = [];
+        // Test if JavaScript is running
+        console.log('JavaScript is loading...');
+        
+        // Session-based cart system using existing backend infrastructure
+        let currentRestaurantId = parseInt('<c:out value="${restaurant.id}"/>');
+        let currentRestaurantName = '<c:out value="${restaurant.name}"/>';
+        
+        console.log('Raw restaurant ID from JSP:', '<c:out value="${restaurant.id}"/>');
+        console.log('Parsed restaurant ID:', currentRestaurantId);
+        console.log('Restaurant name:', currentRestaurantName);
+        
+        // Constants
         const DELIVERY_FEE = 2.99;
         const MIN_ORDER_AMOUNT = 15.00;
-          // Add event listeners for Add to Cart buttons
+        
+        // Cart data - synced with session storage but managed per restaurant
+        let restaurantCarts = {};
+        let currentCart = [];
+        
+        // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing menu page for restaurant:', currentRestaurantId);
+            
+            if (!currentRestaurantId || isNaN(currentRestaurantId)) {
+                console.error('Invalid restaurant ID:', currentRestaurantId);
+                return;
+            }
+            
+            loadCartsFromStorage();
+            setupEventListeners();
+            updateCartDisplay();
+            
+            console.log('Initialization complete');
+        });
+        
+        function loadCartsFromStorage() {
+            try {
+                const saved = sessionStorage.getItem('restaurantCarts');
+                if (saved) {
+                    restaurantCarts = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.warn('Could not load from sessionStorage:', e);
+                restaurantCarts = {};
+            }
+            
+            // Get current restaurant cart
+            if (!restaurantCarts[currentRestaurantId]) {
+                restaurantCarts[currentRestaurantId] = {
+                    restaurantId: currentRestaurantId,
+                    restaurantName: currentRestaurantName,
+                    items: []
+                };
+            }
+            
+            currentCart = restaurantCarts[currentRestaurantId].items;
+            console.log('Loaded cart for restaurant', currentRestaurantId, ':', currentCart);
+        }
+        
+        function saveCartsToStorage() {
+            try {
+                sessionStorage.setItem('restaurantCarts', JSON.stringify(restaurantCarts));
+            } catch (e) {
+                console.warn('Could not save to sessionStorage:', e);
+            }
+        }
+        
+        function setupEventListeners() {
+            // Add to cart buttons
             const addToCartButtons = document.querySelectorAll('.add-to-cart-btn');
-            addToCartButtons.forEach(button => {
-                button.addEventListener('click', function() {
+            console.log('Found', addToCartButtons.length, 'add to cart buttons');
+            
+            if (addToCartButtons.length === 0) {
+                console.error('No add to cart buttons found! Check if menu items are loading correctly.');
+                return;
+            }
+            
+            addToCartButtons.forEach((button, index) => {
+                console.log('Setting up button', index, 'with data:', {
+                    itemId: button.getAttribute('data-item-id'),
+                    itemName: button.getAttribute('data-item-name'),
+                    itemPrice: button.getAttribute('data-item-price')
+                });
+                
+                button.addEventListener('click', function(event) {
+                    console.log('=== BUTTON CLICKED ===');
+                    event.preventDefault();
+                    
                     const itemId = this.getAttribute('data-item-id');
                     const itemName = this.getAttribute('data-item-name');
                     const itemPrice = parseFloat(this.getAttribute('data-item-price'));
-                    addToCart(itemId, itemName, itemPrice);
+                    const qtyElement = document.getElementById('qty-' + itemId);
+                    
+                    if (!qtyElement) {
+                        console.error('Quantity element not found for item:', itemId);
+                        showToast('Error: Could not find quantity input', 'danger');
+                        return;
+                    }
+                    
+                    const quantity = parseInt(qtyElement.value);
+                    console.log('About to call addToCart with:', {itemId, itemName, itemPrice, quantity});
+                    addToCart(itemId, itemName, itemPrice, quantity);
                 });
             });
             
-            // Add category filter button event listeners
+            // Category filter buttons
             const categoryButtons = document.querySelectorAll('.category-btn');
             categoryButtons.forEach(button => {
                 button.addEventListener('click', function() {
@@ -222,44 +313,221 @@
                 });
             });
             
-            // Add checkout button event listener
+            // Checkout and clear cart buttons
             const checkoutBtn = document.getElementById('checkoutBtn');
             if (checkoutBtn) {
                 checkoutBtn.addEventListener('click', proceedToCheckout);
             }
             
-            // Add clear cart button event listener
             const clearCartBtn = document.getElementById('clearCartBtn');
             if (clearCartBtn) {
                 clearCartBtn.addEventListener('click', clearCart);
             }
-        });
-          function addToCart(itemId, itemName, itemPrice) {
-            const quantity = parseInt(document.getElementById('qty-' + itemId).value);
+        }
+        
+        function addToCart(itemId, itemName, itemPrice, quantity) {
+            console.log('Adding to cart:', {itemId, itemName, itemPrice, quantity});
             
-            // Check if item already exists in cart
-            const existingItemIndex = cart.findIndex(item => item.id === itemId);
-            
-            if (existingItemIndex > -1) {
-                // Update quantity if item exists
-                cart[existingItemIndex].quantity += quantity;
-            } else {
-                // Add new item to cart
-                cart.push({
-                    id: itemId,
-                    name: itemName,
-                    price: itemPrice,
-                    quantity: quantity
-                });
+            try {
+                // Validate inputs
+                if (!itemId || !itemName || !itemPrice || !quantity) {
+                    console.error('Invalid input parameters');
+                    showToast('Error: Invalid item data', 'danger');
+                    return;
+                }
+                
+                if (isNaN(itemPrice) || isNaN(quantity) || quantity <= 0) {
+                    console.error('Invalid price or quantity');
+                    showToast('Error: Invalid price or quantity', 'danger');
+                    return;
+                }
+                
+                // Find existing item
+                const existingItemIndex = currentCart.findIndex(item => item.itemId === itemId);
+                
+                if (existingItemIndex > -1) {
+                    // Update existing item
+                    currentCart[existingItemIndex].quantity += quantity;
+                } else {
+                    // Add new item
+                    currentCart.push({
+                        itemId: itemId,
+                        name: itemName,
+                        price: itemPrice,
+                        quantity: quantity
+                    });
+                }
+                
+                // Update storage
+                restaurantCarts[currentRestaurantId].items = currentCart;
+                saveCartsToStorage();
+                
+                // Reset quantity input
+                const qtyElement = document.getElementById('qty-' + itemId);
+                if (qtyElement) {
+                    qtyElement.value = 1;
+                }
+                
+                // Update display
+                updateCartDisplay();
+                
+                // Show success message
+                showToast('Added ' + quantity + ' × ' + itemName + ' to cart!', 'success');
+                console.log('Item added successfully');
+                
+            } catch (error) {
+                console.error('Error in addToCart function:', error);
+                showToast('Error adding item to cart', 'danger');
+            }
+        }
+        
+        function removeFromCart(itemId) {
+            currentCart = currentCart.filter(item => item.itemId !== itemId);
+            restaurantCarts[currentRestaurantId].items = currentCart;
+            saveCartsToStorage();
+            updateCartDisplay();
+            showToast('Item removed from cart', 'info');
+        }
+        
+        function updateItemQuantity(itemId, newQuantity) {
+            if (newQuantity <= 0) {
+                removeFromCart(itemId);
+                return;
             }
             
-            // Reset quantity input
-            document.getElementById('qty-' + itemId).value = 1;
+            const item = currentCart.find(item => item.itemId === itemId);
+            if (item) {
+                item.quantity = newQuantity;
+                restaurantCarts[currentRestaurantId].items = currentCart;
+                saveCartsToStorage();
+                updateCartDisplay();
+            }
+        }
+        
+        function clearCart() {
+            if (currentCart.length === 0) {
+                showToast('Your cart is already empty', 'info');
+                return;
+            }
             
-            updateCartDisplay();
+            if (confirm('Are you sure you want to clear your cart? This will remove all ' + currentCart.length + ' item(s).')) {
+                currentCart = [];
+                restaurantCarts[currentRestaurantId].items = currentCart;
+                saveCartsToStorage();
+                updateCartDisplay();
+                showToast('Cart cleared successfully', 'success');
+            }
+        }
+        
+        function updateCartDisplay() {
+            const cartItemsDiv = document.getElementById('cartItems');
+            const subtotalSpan = document.getElementById('subtotal');
+            const cartTotalSpan = document.getElementById('cartTotal');
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            const clearCartBtn = document.getElementById('clearCartBtn');
             
-            // Show success message
-            showToast('Added ' + quantity + ' × ' + itemName + ' to cart!', 'success');
+            if (currentCart.length === 0) {
+                cartItemsDiv.innerHTML = '<p class="text-muted">Your cart is empty</p>';
+                subtotalSpan.textContent = '0.00';
+                cartTotalSpan.textContent = DELIVERY_FEE.toFixed(2);
+                checkoutBtn.disabled = true;
+                checkoutBtn.textContent = 'Checkout ($15 min)';
+                clearCartBtn.style.display = 'none';
+                
+                showOtherRestaurantCarts();
+                return;
+            }
+            
+            // Calculate subtotal
+            const subtotal = currentCart.reduce((total, item) => total + (item.price * item.quantity), 0);
+            const total = subtotal + DELIVERY_FEE;
+            
+            // Update cart items display
+            let cartHTML = '';
+            currentCart.forEach(item => {
+                cartHTML += '<div class="cart-item mb-2 p-2 border rounded">';
+                cartHTML += '  <div class="d-flex justify-content-between align-items-start">';
+                cartHTML += '    <div class="flex-grow-1">';
+                cartHTML += '      <h6 class="mb-1" style="font-size: 0.9rem;">' + escapeHtml(item.name) + '</h6>';
+                cartHTML += '      <small class="text-muted">$' + item.price.toFixed(2) + ' each</small>';
+                cartHTML += '    </div>';
+                cartHTML += '    <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(\'' + item.itemId + '\')" title="Remove">×</button>';
+                cartHTML += '  </div>';
+                cartHTML += '  <div class="d-flex justify-content-between align-items-center mt-2">';
+                cartHTML += '    <div class="d-flex align-items-center">';
+                cartHTML += '      <button class="btn btn-sm btn-outline-secondary" onclick="updateItemQuantity(\'' + item.itemId + '\', ' + (item.quantity - 1) + ')">-</button>';
+                cartHTML += '      <span class="mx-2">' + item.quantity + '</span>';
+                cartHTML += '      <button class="btn btn-sm btn-outline-secondary" onclick="updateItemQuantity(\'' + item.itemId + '\', ' + (item.quantity + 1) + ')">+</button>';
+                cartHTML += '    </div>';
+                cartHTML += '    <strong>$' + (item.price * item.quantity).toFixed(2) + '</strong>';
+                cartHTML += '  </div>';
+                cartHTML += '</div>';
+            });
+            
+            cartItemsDiv.innerHTML = cartHTML;
+            subtotalSpan.textContent = subtotal.toFixed(2);
+            cartTotalSpan.textContent = total.toFixed(2);
+            
+            // Enable/disable checkout button
+            if (subtotal >= MIN_ORDER_AMOUNT) {
+                checkoutBtn.disabled = false;
+                checkoutBtn.textContent = 'Proceed to Checkout';
+            } else {
+                checkoutBtn.disabled = true;
+                const remaining = MIN_ORDER_AMOUNT - subtotal;
+                checkoutBtn.textContent = '$' + remaining.toFixed(2) + ' more needed';
+            }
+            
+            clearCartBtn.style.display = 'block';
+            
+            // Show other restaurant carts
+            showOtherRestaurantCarts();
+        }
+        
+        function showOtherRestaurantCarts() {
+            let otherCartsHTML = '';
+            let hasOtherCarts = false;
+            
+            for (const [restaurantId, cart] of Object.entries(restaurantCarts)) {
+                if (restaurantId != currentRestaurantId && cart.items && cart.items.length > 0) {
+                    hasOtherCarts = true;
+                    const itemCount = cart.items.length;
+                    const totalValue = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+                    
+                    otherCartsHTML += '<div class="mt-2 p-2 bg-light rounded">';
+                    otherCartsHTML += '  <small class="text-muted d-block">' + escapeHtml(cart.restaurantName) + '</small>';
+                    otherCartsHTML += '  <small>' + itemCount + ' item(s) - $' + totalValue.toFixed(2) + '</small>';
+                    otherCartsHTML += '  <a href="/FoodDelivery2/customer/restaurant/' + restaurantId + '/menu" class="btn btn-sm btn-outline-primary ms-2">View</a>';
+                    otherCartsHTML += '</div>';
+                }
+            }
+            
+            // Add or update the other carts section
+            let otherCartsSection = document.getElementById('otherCartsSection');
+            
+            if (hasOtherCarts) {
+                if (!otherCartsSection) {
+                    otherCartsSection = document.createElement('div');
+                    otherCartsSection.id = 'otherCartsSection';
+                    
+                    // Find the specific cart card body that contains the checkout button
+                    const checkoutBtn = document.getElementById('checkoutBtn');
+                    if (checkoutBtn) {
+                        const cartCardBody = checkoutBtn.closest('.card-body');
+                        if (cartCardBody) {
+                            cartCardBody.insertBefore(otherCartsSection, checkoutBtn);
+                        }
+                    }
+                }
+                
+                if (otherCartsSection) {
+                    otherCartsSection.innerHTML = '<hr><small class="text-muted">Items in other restaurants:</small>' + otherCartsHTML;
+                }
+            } else {
+                if (otherCartsSection) {
+                    otherCartsSection.remove();
+                }
+            }
         }
         
         function filterMenuItems(category) {
@@ -275,12 +543,10 @@
                 }
             });
             
-            // Show/hide no items message if needed
+            // Show/hide no items message
             const visibleItems = document.querySelectorAll('.menu-item[style*="block"], .menu-item:not([style*="none"])');
-            const noItemsAlert = document.querySelector('.alert-info');
             
             if (visibleItems.length === 0 && category !== 'All') {
-                // Create or show "no items in category" message
                 let noItemsDiv = document.getElementById('no-items-message');
                 if (!noItemsDiv) {
                     noItemsDiv = document.createElement('div');
@@ -291,7 +557,6 @@
                 }
                 noItemsDiv.style.display = 'block';
             } else {
-                // Hide the no items message
                 const noItemsDiv = document.getElementById('no-items-message');
                 if (noItemsDiv) {
                     noItemsDiv.style.display = 'none';
@@ -299,110 +564,43 @@
             }
         }
         
-        function removeFromCart(itemId) {
-            cart = cart.filter(item => item.id !== itemId);
-            updateCartDisplay();
-            showToast('Item removed from cart', 'info');
-        }
-        
-        function updateItemQuantity(itemId, newQuantity) {
-            const item = cart.find(item => item.id === itemId);
-            if (item) {
-                if (newQuantity <= 0) {
-                    removeFromCart(itemId);
-                } else {
-                    item.quantity = parseInt(newQuantity);
-                    updateCartDisplay();
-                }
-            }
-        }
-        
-        function updateCartDisplay() {
-            const cartItemsDiv = document.getElementById('cartItems');
-            const subtotalSpan = document.getElementById('subtotal');
-            const cartTotalSpan = document.getElementById('cartTotal');
-            const checkoutBtn = document.getElementById('checkoutBtn');
-            const clearCartBtn = document.getElementById('clearCartBtn');
-            
-            if (cart.length === 0) {
-                cartItemsDiv.innerHTML = '<p class="text-muted">Your cart is empty</p>';
-                subtotalSpan.textContent = '0.00';
-                cartTotalSpan.textContent = DELIVERY_FEE.toFixed(2);
-                checkoutBtn.disabled = true;
-                checkoutBtn.textContent = 'Checkout ($15 min)';
-                clearCartBtn.style.display = 'none';
-                return;
-            }
-            
-            // Calculate subtotal
-            const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-            const total = subtotal + DELIVERY_FEE;
-            
-            // Update cart items display
-            let cartHTML = '';
-            cart.forEach(item => {
-                cartHTML += '<div class="cart-item mb-2 p-2 border rounded">';
-                cartHTML += '  <div class="d-flex justify-content-between align-items-start">';
-                cartHTML += '    <div class="flex-grow-1">';
-                cartHTML += '      <h6 class="mb-1" style="font-size: 0.9rem;">' + escapeHtml(item.name) + '</h6>';
-                cartHTML += '      <small class="text-muted">$' + item.price.toFixed(2) + ' each</small>';
-                cartHTML += '    </div>';
-                cartHTML += '    <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(\'' + item.id + '\')" title="Remove">×</button>';
-                cartHTML += '  </div>';
-                cartHTML += '  <div class="d-flex justify-content-between align-items-center mt-2">';
-                cartHTML += '    <div class="d-flex align-items-center">';
-                cartHTML += '      <button class="btn btn-sm btn-outline-secondary" onclick="updateItemQuantity(\'' + item.id + '\', ' + (item.quantity - 1) + ')">-</button>';
-                cartHTML += '      <span class="mx-2">' + item.quantity + '</span>';
-                cartHTML += '      <button class="btn btn-sm btn-outline-secondary" onclick="updateItemQuantity(\'' + item.id + '\', ' + (item.quantity + 1) + ')">+</button>';
-                cartHTML += '    </div>';
-                cartHTML += '    <strong>$' + (item.price * item.quantity).toFixed(2) + '</strong>';
-                cartHTML += '  </div>';
-                cartHTML += '</div>';
-            });
-            
-            cartItemsDiv.innerHTML = cartHTML;
-            subtotalSpan.textContent = subtotal.toFixed(2);
-            cartTotalSpan.textContent = total.toFixed(2);
-            
-            // Enable/disable checkout button based on minimum order amount
-            if (subtotal >= MIN_ORDER_AMOUNT) {
-                checkoutBtn.disabled = false;
-                checkoutBtn.textContent = 'Proceed to Checkout';
-            } else {
-                checkoutBtn.disabled = true;
-                const remaining = MIN_ORDER_AMOUNT - subtotal;
-                checkoutBtn.textContent = '$' + remaining.toFixed(2) + ' more needed';
-            }
-            
-            clearCartBtn.style.display = 'block';
-        }
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-        function clearCart() {
-            if (confirm('Are you sure you want to clear your cart?')) {
-                cart = [];
-                updateCartDisplay();
-                showToast('Cart cleared', 'info');
-            }
-        }
-        
         function proceedToCheckout() {
-            if (cart.length === 0) {
+            if (currentCart.length === 0) {
                 showToast('Your cart is empty', 'warning');
                 return;
             }
             
-            const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+            const subtotal = currentCart.reduce((total, item) => total + (item.price * item.quantity), 0);
             if (subtotal < MIN_ORDER_AMOUNT) {
                 showToast('Minimum order amount is $' + MIN_ORDER_AMOUNT.toFixed(2), 'warning');
                 return;
             }
-              // Get user's saved address and phone as defaults from hidden fields
+            
+            // Check if user has items in other restaurants' carts
+            const otherCartCount = Object.keys(restaurantCarts).filter(id => 
+                id != currentRestaurantId && restaurantCarts[id].items && restaurantCarts[id].items.length > 0
+            ).length;
+            
+            // Inform user if they have items in other restaurant carts
+            if (otherCartCount > 0) {
+                const otherCartsInfo = Object.entries(restaurantCarts)
+                    .filter(([id, cart]) => id != currentRestaurantId && cart.items && cart.items.length > 0)
+                    .map(([id, cart]) => `${cart.restaurantName}: ${cart.items.length} item(s)`)
+                    .join('\n');
+                
+                const proceed = confirm(
+                    `You are about to place an order from this restaurant only.\n\n` +
+                    `Current cart: ${currentCart.length} item(s) from this restaurant\n\n` +
+                    `Note: You also have items in other restaurant carts:\n${otherCartsInfo}\n\n` +
+                    `Those items will remain saved for later. Continue with this order?`
+                );
+                
+                if (!proceed) {
+                    return;
+                }
+            }
+            
+            // Get user info
             const userAddress = document.getElementById('userAddress').value || '';
             const userPhone = document.getElementById('userPhone').value || '';
             
@@ -423,20 +621,17 @@
             // Calculate totals
             const totalAmount = subtotal + DELIVERY_FEE;
             
-            // Get restaurant ID from URL
-            const pathParts = window.location.pathname.split('/');
-            const restaurantId = pathParts[pathParts.indexOf('restaurant') + 1];
+            // Prepare order data (convert cart items to match expected format)
+            const orderItems = currentCart.map(item => ({
+                id: item.itemId,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity
+            }));
             
-            // Validate restaurant ID
-            if (!restaurantId || isNaN(restaurantId)) {
-                showToast('Error: Restaurant ID not found. Please refresh the page.', 'danger');
-                return;
-            }
-            
-            // Prepare order data
             const orderData = {
-                restaurantId: restaurantId,
-                items: cart,
+                restaurantId: currentRestaurantId,
+                items: orderItems,
                 deliveryAddress: deliveryAddress.trim(),
                 phone: phone.trim(),
                 specialInstructions: specialInstructions.trim(),
@@ -446,12 +641,9 @@
                 total: totalAmount
             };
             
-            console.log('Sending order data:', orderData);
-            
-            // Show loading message
+            console.log('Placing order:', orderData);
             showToast('Placing your order...', 'info');
             
-            // Send order to server
             fetch('/FoodDelivery2/customer/place-order', {
                 method: 'POST',
                 headers: {
@@ -464,29 +656,21 @@
                 if (!response.ok) {
                     throw new Error('HTTP ' + response.status + ': ' + response.statusText);
                 }
-                
-                const contentType = response.headers.get('Content-Type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error('Server returned non-JSON response: ' + contentType);
-                }
-                
                 return response.json();
             })
             .then(data => {
-                console.log('Order response:', data);
-                
                 if (data.success) {
                     showToast('Order placed successfully! Order ' + data.orderNumber, 'success');
                     
-                    // Clear cart after successful order
-                    cart = [];
+                    // Clear all restaurant carts after successful order
+                    restaurantCarts = {};
+                    currentCart = [];
+                    saveCartsToStorage();
                     updateCartDisplay();
                     
-                    // Redirect to orders page after a delay
                     setTimeout(function() {
                         window.location.href = '/FoodDelivery2/customer/orders';
                     }, 2000);
-                    
                 } else {
                     showToast('Failed to place order: ' + data.message, 'danger');
                 }
@@ -497,10 +681,15 @@
             });
         }
         
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
         function showToast(message, type) {
             type = type || 'info';
             
-            // Create toast element
             const toast = document.createElement('div');
             toast.className = 'alert alert-' + type + ' position-fixed';
             toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 400px;';
@@ -521,23 +710,12 @@
             toast.appendChild(flexDiv);
             document.body.appendChild(toast);
             
-            // Auto remove after 4 seconds
             setTimeout(function() {
                 if (toast.parentElement) {
                     toast.remove();
                 }
-            }, 4000);        }
+            }, 4000);
+        }
     </script>
-
-
-
-    <script>
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            // ...existing code...
-        });
-    </script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
