@@ -82,63 +82,74 @@
             <c:choose>
                 <c:when test="${not empty menuItems}">
                     <c:forEach var="category" items="${categories}">
-                        <div class="col-12 mb-4">
-                            <div class="glass-card">
-                                <div class="card-header">
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-list me-2"></i><c:out value="${category}"/>
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <c:forEach var="item" items="${menuItems}">
-                                            <c:if test="${item.category == category}">
-                                                <div class="col-md-6 col-lg-4 mb-3">
-                                                    <div class="glass-card h-100">
-                                                        <div class="card-body">
-                                                            <h6 class="card-title">
-                                                                <c:out value="${item.name}"/>
-                                                            </h6>
-                                                            <c:if test="${not empty item.description}">
-                                                                <p class="card-text text-muted">
-                                                                    <c:out value="${item.description}"/>
+                        <!-- Check if this category has any items -->
+                        <c:set var="hasItemsInCategory" value="false" />
+                        <c:forEach var="item" items="${menuItems}">
+                            <c:if test="${item.category == category}">
+                                <c:set var="hasItemsInCategory" value="true" />
+                            </c:if>
+                        </c:forEach>
+                        
+                        <!-- Only show the category section if it has items -->
+                        <c:if test="${hasItemsInCategory}">
+                            <div class="col-12 mb-4">
+                                <div class="glass-card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-list me-2"></i><c:out value="${category}"/>
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <c:forEach var="item" items="${menuItems}">
+                                                <c:if test="${item.category == category}">
+                                                    <div class="col-md-6 col-lg-4 mb-3">
+                                                        <div class="glass-card h-100">
+                                                            <div class="card-body">
+                                                                <h6 class="card-title">
+                                                                    <c:out value="${item.name}"/>
+                                                                </h6>
+                                                                <c:if test="${not empty item.description}">
+                                                                    <p class="card-text text-muted">
+                                                                        <c:out value="${item.description}"/>
+                                                                    </p>
+                                                                </c:if>
+                                                                <p class="card-text">
+                                                                    <strong>$<c:out value="${item.price}"/></strong>
                                                                 </p>
-                                                            </c:if>
-                                                            <p class="card-text">
-                                                                <strong>$<c:out value="${item.price}"/></strong>
-                                                            </p>
-                                                            <p class="card-text">
-                                                                <small class="text-muted">
-                                                                    Available: 
-                                                                    <c:choose>
-                                                                        <c:when test="${item.available}">
-                                                                            <span class="badge bg-success">Yes</span>
-                                                                        </c:when>
-                                                                        <c:otherwise>
-                                                                            <span class="badge bg-danger">No</span>
-                                                                        </c:otherwise>
-                                                                    </c:choose>
-                                                                </small>
-                                                            </p>
-                                                            <div class="btn-group w-100" role="group">
-                                                                <a href="${pageContext.request.contextPath}/restaurant/menu/edit/${item.id}" 
-                                                                   class="btn btn-outline-primary btn-sm">
-                                                                    <i class="fas fa-edit me-1"></i>Edit
-                                                                </a>
-                                                                <button class="btn btn-outline-danger btn-sm" 
-                                                                        onclick="deleteItem('${item.id}')">>
-                                                                    <i class="fas fa-trash me-1"></i>Delete
-                                                                </button>
+                                                                <p class="card-text">
+                                                                    <small class="text-muted">
+                                                                        Available: 
+                                                                        <c:choose>
+                                                                            <c:when test="${item.available}">
+                                                                                <span class="badge bg-success">Yes</span>
+                                                                            </c:when>
+                                                                            <c:otherwise>
+                                                                                <span class="badge bg-danger">No</span>
+                                                                            </c:otherwise>
+                                                                        </c:choose>
+                                                                    </small>
+                                                                </p>
+                                                                <div class="btn-group w-100" role="group">
+                                                                    <a href="${pageContext.request.contextPath}/restaurant/menu/edit/${item.id}" 
+                                                                       class="btn btn-outline-primary btn-sm">
+                                                                        <i class="fas fa-edit me-1"></i>Edit
+                                                                    </a>
+                                                                    <button class="btn btn-outline-danger btn-sm" 
+                                                                            onclick="deleteItem('${item.id}')">
+                                                                        <i class="fas fa-trash me-1"></i>Delete
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </c:if>
-                                        </c:forEach>
+                                                </c:if>
+                                            </c:forEach>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </c:if>
                     </c:forEach>
                 </c:when>
                 <c:otherwise>
@@ -159,7 +170,6 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="${pageContext.request.contextPath}/resources/js/global-scripts.js"></script>
     
     <script>
         function deleteItem(itemId) {
@@ -172,9 +182,24 @@
                 })
                 .then(response => {
                     if (response.ok) {
-                        location.reload();
+                        // Show success message and reload page
+                        const successAlert = document.createElement('div');
+                        successAlert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                        successAlert.style.cssText = 'top: 100px; right: 20px; z-index: 9999; max-width: 400px;';
+                        successAlert.innerHTML = `
+                            <i class="fas fa-check-circle me-2"></i>Menu item deleted successfully!
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        `;
+                        document.body.appendChild(successAlert);
+                        
+                        // Reload page after a short delay
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
                     } else {
-                        alert('Failed to delete menu item. Please try again.');
+                        response.text().then(errorMessage => {
+                            alert('Failed to delete menu item: ' + errorMessage);
+                        });
                     }
                 })
                 .catch(error => {

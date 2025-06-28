@@ -109,10 +109,6 @@
                        class="btn ${currentStatus == 'PREPARING' ? 'btn-primary' : 'btn-outline-primary'}">
                         Preparing (${preparingCount})
                     </a>
-                    <a href="${pageContext.request.contextPath}/restaurant/orders?status=READY" 
-                       class="btn ${currentStatus == 'READY' ? 'btn-success' : 'btn-outline-success'}">
-                        Ready (${readyCount})
-                    </a>
                     <a href="${pageContext.request.contextPath}/restaurant/orders?status=OUT_FOR_DELIVERY" 
                        class="btn ${currentStatus == 'OUT_FOR_DELIVERY' ? 'btn-dark' : 'btn-outline-dark'}">
                         Out for Delivery (${deliveryCount})
@@ -149,7 +145,6 @@
                                                 <c:when test='${order.status.name() == "PENDING"}'>bg-warning</c:when>
                                                 <c:when test='${order.status.name() == "CONFIRMED"}'>bg-info</c:when>
                                                 <c:when test='${order.status.name() == "PREPARING"}'>bg-primary</c:when>
-                                                <c:when test='${order.status.name() == "READY"}'>bg-success</c:when>
                                                 <c:when test='${order.status.name() == "OUT_FOR_DELIVERY"}'>bg-secondary</c:when>
                                                 <c:when test='${order.status.name() == "DELIVERED"}'>bg-success</c:when>
                                                 <c:when test='${order.status.name() == "CANCELLED"}'>bg-danger</c:when>
@@ -225,12 +220,6 @@
                                                     </c:when>
                                                     <c:when test='${order.status.name() == "PREPARING"}'>
                                                         <button class="btn btn-success btn-sm" 
-                                                                onclick="updateOrderStatus('${order.id}', 'READY')">
-                                                            <i class="fas fa-check-circle me-1"></i>Mark Ready
-                                                        </button>
-                                                    </c:when>
-                                                    <c:when test='${order.status.name() == "READY"}'>
-                                                        <button class="btn btn-info btn-sm" 
                                                                 onclick="updateOrderStatus('${order.id}', 'OUT_FOR_DELIVERY')">
                                                             <i class="fas fa-truck me-1"></i>Out for Delivery
                                                         </button>

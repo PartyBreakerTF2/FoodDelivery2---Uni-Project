@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -408,6 +409,7 @@ public class CustomerController {
     
     @PostMapping("/orders")
     @ResponseBody
+    @Transactional
     public Map<String, Object> createOrder(@RequestBody Map<String, Object> orderData, HttpSession session) {
         Map<String, Object> response = new HashMap<>();
         
@@ -487,6 +489,13 @@ public class CustomerController {
             
             // Save order first to get ID
             order = orderService.save(order);
+            
+            // Check if order was saved successfully
+            if (order == null || order.getId() == null) {
+                response.put("success", false);
+                response.put("message", "Failed to create order in database");
+                return response;
+            }
             
             // Create order items
             for (Map<String, Object> itemData : items) {

@@ -102,7 +102,6 @@
                                                     <c:when test='${order.status.name() == "PENDING"}'>bg-warning</c:when>
                                                     <c:when test='${order.status.name() == "CONFIRMED"}'>bg-info</c:when>
                                                     <c:when test='${order.status.name() == "PREPARING"}'>bg-primary</c:when>
-                                                    <c:when test='${order.status.name() == "READY"}'>bg-success</c:when>
                                                     <c:when test='${order.status.name() == "OUT_FOR_DELIVERY"}'>bg-secondary</c:when>
                                                     <c:when test='${order.status.name() == "DELIVERED"}'>bg-success</c:when>
                                                     <c:when test='${order.status.name() == "CANCELLED"}'>bg-danger</c:when>
@@ -117,9 +116,6 @@
                                                     </c:when>
                                                     <c:when test='${order.status.name() == "PREPARING"}'>
                                                         <i class="fas fa-utensils me-1"></i>Preparing
-                                                    </c:when>
-                                                    <c:when test='${order.status.name() == "READY"}'>
-                                                        <i class="fas fa-box me-1"></i>Ready
                                                     </c:when>
                                                     <c:when test='${order.status.name() == "OUT_FOR_DELIVERY"}'>
                                                         <i class="fas fa-truck me-1"></i>Out for Delivery
@@ -149,6 +145,12 @@
                                                         id="cancel-btn-${order.id}"
                                                         onclick="cancelOrder('${order.id}')">
                                                     <i class="fas fa-times me-1"></i>Cancel
+                                                </button>
+                                            </c:if>
+                                            <c:if test='${order.status.name() == "DELIVERED"}'>
+                                                <button class="btn btn-outline-success btn-sm ms-2" 
+                                                        onclick="openRatingModal('${order.id}', '${fn:escapeXml(order.restaurant.name)}', '${order.restaurant.id}')">
+                                                    <i class="fas fa-star me-1"></i>Rate Order
                                                 </button>
                                             </c:if>
                                         </div>
@@ -218,9 +220,89 @@
         </div>
     </div>
 
+    <!-- Rating Modal -->
+    <div class="modal fade" id="ratingModal" tabindex="-1" aria-labelledby="ratingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="ratingModalLabel">
+                        <i class="fas fa-star me-2"></i>Rate Your Experience
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <form id="ratingForm">
+                        <input type="hidden" id="ratingOrderId" name="orderId">
+                        <input type="hidden" id="ratingRestaurantId" name="restaurantId">
+                        <div class="mb-3">
+                            <h6 id="restaurantName" class="mb-3"></h6>
+                            <div class="rating-stars mb-3">
+                                <span class="star" data-rating="1"><i class="fas fa-star"></i></span>
+                                <span class="star" data-rating="2"><i class="fas fa-star"></i></span>
+                                <span class="star" data-rating="3"><i class="fas fa-star"></i></span>
+                                <span class="star" data-rating="4"><i class="fas fa-star"></i></span>
+                                <span class="star" data-rating="5"><i class="fas fa-star"></i></span>
+                            </div>
+                            <input type="hidden" id="ratingValue" name="rating" value="0">
+                            <p class="text-muted small">Click to rate from 1 to 5 stars</p>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="submitRating()">
+                        Submit Rating
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="${pageContext.request.contextPath}/resources/js/global-scripts.js"></script>
+    
+    <style>
+        .rating-stars {
+            font-size: 2rem;
+            text-align: center;
+        }
+        .star {
+            cursor: pointer;
+            transition: color 0.3s;
+            margin: 0 2px;
+        }
+        .star i {
+            color: #ddd !important;
+            transition: color 0.3s;
+        }
+        .star:hover i,
+        .star.active i {
+            color: #ffc107 !important;
+        }
+        .star.active {
+            animation: starPulse 0.3s ease-in-out;
+        }
+        @keyframes starPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Ensure star colors work in both light and dark mode */
+        [data-theme="light"] .star i,
+        [data-theme="dark"] .star i {
+            color: #ddd !important;
+        }
+        [data-theme="light"] .star:hover i,
+        [data-theme="light"] .star.active i,
+        [data-theme="dark"] .star:hover i,
+        [data-theme="dark"] .star.active i {
+            color: #ffc107 !important;
+        }
+    </style>
     
     <script>
         function toggleOrderDetails(orderId) {
@@ -271,6 +353,126 @@
                     cancelBtn.disabled = false;
                 });
             }
+        }
+        
+        // Rating functionality
+        function openRatingModal(orderId, restaurantName, restaurantId) {
+            document.getElementById('ratingOrderId').value = orderId;
+            document.getElementById('ratingRestaurantId').value = restaurantId;
+            document.getElementById('restaurantName').textContent = 'Rating order from: ' + restaurantName;
+            
+            // Reset rating
+            document.getElementById('ratingValue').value = '0';
+            document.querySelectorAll('.star').forEach(star => {
+                star.classList.remove('active');
+                const starIcon = star.querySelector('i');
+                starIcon.style.color = '#ddd';
+            });
+            
+            const modal = new bootstrap.Modal(document.getElementById('ratingModal'));
+            modal.show();
+        }
+        
+        // Initialize star rating functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const stars = document.querySelectorAll('.star');
+            const ratingValue = document.getElementById('ratingValue');
+            
+            function updateStarDisplay(rating) {
+                stars.forEach((star, index) => {
+                    const starIcon = star.querySelector('i');
+                    if (index < rating) {
+                        star.classList.add('active');
+                        starIcon.style.color = '#ffc107';
+                    } else {
+                        star.classList.remove('active');
+                        starIcon.style.color = '#ddd';
+                    }
+                });
+            }
+            
+            stars.forEach(star => {
+                star.addEventListener('click', function() {
+                    const rating = parseInt(this.getAttribute('data-rating'));
+                    ratingValue.value = rating;
+                    updateStarDisplay(rating);
+                });
+                
+                star.addEventListener('mouseenter', function() {
+                    const rating = parseInt(this.getAttribute('data-rating'));
+                    stars.forEach((s, index) => {
+                        const starIcon = s.querySelector('i');
+                        if (index < rating) {
+                            starIcon.style.color = '#ffc107';
+                        } else {
+                            starIcon.style.color = '#ddd';
+                        }
+                    });
+                });
+            });
+            
+            // Reset star colors on mouse leave to show current selection
+            document.querySelector('.rating-stars').addEventListener('mouseleave', function() {
+                const currentRating = parseInt(ratingValue.value);
+                updateStarDisplay(currentRating);
+            });
+        });
+        
+        function submitRating() {
+            const orderId = document.getElementById('ratingOrderId').value;
+            const restaurantId = document.getElementById('ratingRestaurantId').value;
+            const rating = document.getElementById('ratingValue').value;
+            
+            if (rating === '0') {
+                alert('Please select a rating before submitting.');
+                return;
+            }
+            
+            const submitBtn = document.querySelector('#ratingModal .btn-primary');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+            submitBtn.disabled = true;
+            
+            const ratingData = {
+                restaurantId: parseInt(restaurantId),
+                rating: parseInt(rating),
+                comment: '' // Empty comment since we're not using it
+            };
+            
+            fetch('${pageContext.request.contextPath}/customer/rate-restaurant', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(ratingData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Thank you for your rating!');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('ratingModal'));
+                    modal.hide();
+                    
+                    // Update the rate button to show it's been rated
+                    const rateBtn = document.querySelector(`button[onclick*="openRatingModal('${orderId}'"]`);
+                    if (rateBtn) {
+                        rateBtn.innerHTML = '<i class="fas fa-check me-1"></i>Rated';
+                        rateBtn.classList.remove('btn-outline-success');
+                        rateBtn.classList.add('btn-success');
+                        rateBtn.disabled = true;
+                    }
+                } else {
+                    alert('Failed to submit rating: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to submit rating. Please try again.');
+            })
+            .finally(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
         }
     </script>
 </body>

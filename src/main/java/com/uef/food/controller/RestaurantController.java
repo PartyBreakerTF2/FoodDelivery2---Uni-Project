@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.uef.food.model.MenuItem;
@@ -87,8 +89,10 @@ public class RestaurantController {
         }
         
         List<MenuItem> menuItems = menuItemService.findByRestaurant(restaurant.getId());
+        List<String> categories = menuItemService.getAllCategories();
         model.addAttribute("restaurant", restaurant);
         model.addAttribute("menuItems", menuItems);
+        model.addAttribute("categories", categories);
         
         return "restaurant/menu";
     }
@@ -190,7 +194,40 @@ public class RestaurantController {
         }
         
         return "redirect:/restaurant/menu";
-    }    @GetMapping("/orders")
+    }
+
+    @PostMapping("/menu/delete/{id}")
+    @ResponseBody
+    public ResponseEntity<String> deleteMenuItem(@PathVariable Long id, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null || user.getRole() != UserRole.RESTAURANT_STAFF) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+        
+        // Check if user is assigned to a restaurant
+        if (user.getRestaurantId() == null) {
+            return ResponseEntity.status(403).body("You are not assigned to any restaurant");
+        }
+        
+        MenuItem menuItem = menuItemService.findById(id);
+        if (menuItem == null) {
+            return ResponseEntity.status(404).body("Menu item not found");
+        }
+        
+        // Security check: ensure the menu item belongs to the staff's restaurant
+        if (!user.getRestaurantId().equals(menuItem.getRestaurantId())) {
+            return ResponseEntity.status(403).body("Unauthorized access to menu item");
+        }
+        
+        try {
+            menuItemService.delete(id);
+            return ResponseEntity.ok("Menu item deleted successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error deleting menu item: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/orders")
     public String manageOrders(@RequestParam(required = false) String status,
                              HttpSession session, Model model) {
         User user = (User) session.getAttribute("user");
@@ -231,7 +268,6 @@ public class RestaurantController {
         long pendingCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.PENDING).count();
         long confirmedCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.CONFIRMED).count();
         long preparingCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.PREPARING).count();
-        long readyCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.READY).count();
         long deliveryCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.OUT_FOR_DELIVERY).count();
         long deliveredCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.DELIVERED).count();
         long cancelledCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.CANCELLED).count();
@@ -241,7 +277,6 @@ public class RestaurantController {
         model.addAttribute("pendingCount", pendingCount);
         model.addAttribute("confirmedCount", confirmedCount);
         model.addAttribute("preparingCount", preparingCount);
-        model.addAttribute("readyCount", readyCount);
         model.addAttribute("deliveryCount", deliveryCount);
         model.addAttribute("deliveredCount", deliveredCount);
         model.addAttribute("cancelledCount", cancelledCount);
@@ -282,9 +317,17 @@ public class RestaurantController {
             // Update order status
             OrderStatus newStatus = OrderStatus.valueOf(status);
             order.setStatus(newStatus);
-            orderService.save(order);
             
-            redirectAttributes.addFlashAttribute("success", "Order #" + orderId + " status updated to " + status.replace("_", " ").toLowerCase() + ".");
+            // Try to save the order
+            try {
+                orderService.save(order);
+                redirectAttributes.addFlashAttribute("success", "Order #" + orderId + " status updated to " + status.replace("_", " ").toLowerCase() + ".");
+            } catch (RuntimeException e) {
+                redirectAttributes.addFlashAttribute("error", "Failed to update order status: " + e.getMessage());
+            }
+            
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", "Invalid order status: " + status);
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Failed to update order status: " + e.getMessage());
         }

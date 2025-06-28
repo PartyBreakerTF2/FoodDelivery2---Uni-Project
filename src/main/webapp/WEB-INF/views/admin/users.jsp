@@ -140,6 +140,7 @@
                                         <th>Full Name</th>
                                         <th>Email</th>
                                         <th>Role</th>
+                                        <th>Restaurant</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -166,13 +167,35 @@
                                                 </span>
                                             </td>
                                             <td>
+                                                <c:choose>
+                                                    <c:when test="${user.role.name() == 'RESTAURANT_STAFF' && user.restaurantId != null}">
+                                                        <c:forEach var="restaurant" items="${restaurants}">
+                                                            <c:if test="${restaurant.id == user.restaurantId}">
+                                                                <span class="badge bg-success">
+                                                                    <i class="fas fa-store me-1"></i><c:out value="${restaurant.name}"/>
+                                                                </span>
+                                                            </c:if>
+                                                        </c:forEach>
+                                                    </c:when>
+                                                    <c:when test="${user.role.name() == 'RESTAURANT_STAFF'}">
+                                                        <span class="badge bg-warning">
+                                                            <i class="fas fa-exclamation-triangle me-1"></i>Not Assigned
+                                                        </span>
+                                                    </c:when>
+                                                    <c:otherwise>
+                                                        <span class="text-muted">-</span>
+                                                    </c:otherwise>
+                                                </c:choose>
+                                            </td>
+                                            <td>
                                                 <div class="btn-group" role="group">
                                                     <button class="btn btn-sm btn-outline-primary edit-user-btn" 
                                                             data-id="<c:out value='${user.id}'/>"
                                                             data-username="<c:out value='${user.username}'/>"
                                                             data-fullname="<c:out value='${user.fullName}'/>"
                                                             data-email="<c:out value='${user.email}'/>"
-                                                            data-role="<c:out value='${user.role.name()}'/>">
+                                                            data-role="<c:out value='${user.role.name()}'/>"
+                                                            data-restaurantid="<c:out value='${user.restaurantId}'/>">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
                                                     <c:if test="${user.id != sessionScope.user.id}">
@@ -229,6 +252,17 @@
                                 <option value="ADMIN">Admin</option>
                             </select>
                         </div>
+                        <div class="mb-3" id="restaurantSelection" style="display: none;">
+                            <label for="restaurantId" class="form-label">Assign to Restaurant</label>
+                            <select class="form-select" id="restaurantId" name="restaurantId">
+                                <option value="">Select a restaurant...</option>
+                                <c:forEach var="restaurant" items="${restaurants}">
+                                    <option value="<c:out value='${restaurant.id}'/>">
+                                        <c:out value="${restaurant.name}"/>
+                                    </option>
+                                </c:forEach>
+                            </select>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -270,6 +304,17 @@
                                 <option value="ADMIN">Admin</option>
                             </select>
                         </div>
+                        <div class="mb-3" id="editRestaurantSelection" style="display: none;">
+                            <label for="editRestaurantId" class="form-label">Assign to Restaurant</label>
+                            <select class="form-select" id="editRestaurantId" name="restaurantId">
+                                <option value="">Select a restaurant...</option>
+                                <c:forEach var="restaurant" items="${restaurants}">
+                                    <option value="<c:out value='${restaurant.id}'/>">
+                                        <c:out value="${restaurant.name}"/>
+                                    </option>
+                                </c:forEach>
+                            </select>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -284,6 +329,29 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="${pageContext.request.contextPath}/resources/js/global-scripts.js"></script>
     <script>
+        // Show/hide restaurant selection based on role
+        function toggleRestaurantSelection(roleSelect, restaurantDiv) {
+            const role = roleSelect.value;
+            if (role === 'RESTAURANT_STAFF') {
+                restaurantDiv.style.display = 'block';
+                restaurantDiv.querySelector('select').required = true;
+            } else {
+                restaurantDiv.style.display = 'none';
+                restaurantDiv.querySelector('select').required = false;
+                restaurantDiv.querySelector('select').value = '';
+            }
+        }
+
+        // Add user modal - role change handler
+        document.getElementById('role').addEventListener('change', function() {
+            toggleRestaurantSelection(this, document.getElementById('restaurantSelection'));
+        });
+
+        // Edit user modal - role change handler
+        document.getElementById('editRole').addEventListener('change', function() {
+            toggleRestaurantSelection(this, document.getElementById('editRestaurantSelection'));
+        });
+
         // Edit user functionality
         document.addEventListener('click', function(e) {
             if (e.target.closest('.edit-user-btn')) {
@@ -293,12 +361,27 @@
                 const fullName = btn.getAttribute('data-fullname');
                 const email = btn.getAttribute('data-email');
                 const role = btn.getAttribute('data-role');
+                const restaurantId = btn.getAttribute('data-restaurantid');
                 
                 document.getElementById('editUserId').value = id;
                 document.getElementById('editUsername').value = username;
                 document.getElementById('editFullName').value = fullName;
                 document.getElementById('editEmail').value = email;
                 document.getElementById('editRole').value = role;
+                
+                // Handle restaurant selection
+                if (restaurantId && restaurantId !== 'null') {
+                    document.getElementById('editRestaurantId').value = restaurantId;
+                } else {
+                    document.getElementById('editRestaurantId').value = '';
+                }
+                
+                // Show/hide restaurant selection based on role
+                toggleRestaurantSelection(
+                    document.getElementById('editRole'), 
+                    document.getElementById('editRestaurantSelection')
+                );
+                
                 new bootstrap.Modal(document.getElementById('editUserModal')).show();
             }
             

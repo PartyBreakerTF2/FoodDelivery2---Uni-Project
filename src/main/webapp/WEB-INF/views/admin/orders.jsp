@@ -99,7 +99,7 @@
                     <option value="PENDING">Pending</option>
                     <option value="CONFIRMED">Confirmed</option>
                     <option value="PREPARING">Preparing</option>
-                    <option value="READY">Ready</option>
+                    <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
                     <option value="DELIVERED">Delivered</option>
                     <option value="CANCELLED">Cancelled</option>
                 </select>
@@ -174,9 +174,6 @@
                                                         </c:when>
                                                         <c:when test="${order.status.name() == 'PREPARING'}">
                                                             <i class="fas fa-utensils me-1"></i>Preparing
-                                                        </c:when>
-                                                        <c:when test="${order.status.name() == 'READY'}">
-                                                            <i class="fas fa-box me-1"></i>Ready
                                                         </c:when>
                                                         <c:when test="${order.status.name() == 'OUT_FOR_DELIVERY'}">
                                                             <i class="fas fa-truck me-1"></i>Out for Delivery
@@ -428,7 +425,6 @@
                 'PENDING': 'bg-warning',
                 'CONFIRMED': 'bg-info',
                 'PREPARING': 'bg-primary',
-                'READY': 'bg-success',
                 'OUT_FOR_DELIVERY': 'bg-dark',
                 'DELIVERED': 'bg-success',
                 'CANCELLED': 'bg-danger'
@@ -441,7 +437,6 @@
                 'PENDING': '<i class="fas fa-clock me-1"></i>',
                 'CONFIRMED': '<i class="fas fa-check me-1"></i>',
                 'PREPARING': '<i class="fas fa-utensils me-1"></i>',
-                'READY': '<i class="fas fa-box me-1"></i>',
                 'OUT_FOR_DELIVERY': '<i class="fas fa-truck me-1"></i>',
                 'DELIVERED': '<i class="fas fa-check-circle me-1"></i>',
                 'CANCELLED': '<i class="fas fa-times-circle me-1"></i>'

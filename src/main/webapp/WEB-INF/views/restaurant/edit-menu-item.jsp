@@ -107,9 +107,7 @@
                             </div>
                         </c:if>
 
-                        <form action="${pageContext.request.contextPath}/restaurant/menu/edit" method="post" id="menuItemForm" enctype="multipart/form-data">
-                            <input type="hidden" name="id" value="${menuItem.id}">
-                            
+                        <form action="${pageContext.request.contextPath}/restaurant/menu/edit/${menuItem.id}" method="post" id="menuItemForm">
                             <!-- Basic Information Section -->
                             <div class="glass-card mb-4">
                                 <div class="card-body">
@@ -136,13 +134,19 @@
                                                 </label>
                                                 <select class="form-select" id="category" name="category" required>
                                                     <option value="">Select category</option>
+                                                    <option value="Pizza" ${menuItem.category == 'Pizza' ? 'selected' : ''}>Pizza</option>
+                                                    <option value="Burger" ${menuItem.category == 'Burger' ? 'selected' : ''}>Burger</option>
+                                                    <option value="Pasta" ${menuItem.category == 'Pasta' ? 'selected' : ''}>Pasta</option>
+                                                    <option value="Salad" ${menuItem.category == 'Salad' ? 'selected' : ''}>Salad</option>
+                                                    <option value="Fish" ${menuItem.category == 'Fish' ? 'selected' : ''}>Fish</option>
+                                                    <option value="Meat" ${menuItem.category == 'Meat' ? 'selected' : ''}>Meat</option>
+                                                    <option value="Curry" ${menuItem.category == 'Curry' ? 'selected' : ''}>Curry</option>
+                                                    <option value="Sushi" ${menuItem.category == 'Sushi' ? 'selected' : ''}>Sushi</option>
                                                     <option value="Appetizer" ${menuItem.category == 'Appetizer' ? 'selected' : ''}>Appetizer</option>
-                                                    <option value="Main Course" ${menuItem.category == 'Main Course' ? 'selected' : ''}>Main Course</option>
+                                                    <option value="Side" ${menuItem.category == 'Side' ? 'selected' : ''}>Side Dish</option>
                                                     <option value="Dessert" ${menuItem.category == 'Dessert' ? 'selected' : ''}>Dessert</option>
                                                     <option value="Beverage" ${menuItem.category == 'Beverage' ? 'selected' : ''}>Beverage</option>
-                                                    <option value="Side Dish" ${menuItem.category == 'Side Dish' ? 'selected' : ''}>Side Dish</option>
-                                                    <option value="Salad" ${menuItem.category == 'Salad' ? 'selected' : ''}>Salad</option>
-                                                    <option value="Soup" ${menuItem.category == 'Soup' ? 'selected' : ''}>Soup</option>
+                                                    <option value="Bowl" ${menuItem.category == 'Bowl' ? 'selected' : ''}>Bowl</option>
                                                 </select>
                                                 <div class="form-help">Category for menu organization</div>
                                             </div>
@@ -191,37 +195,6 @@
                                 </div>
                             </div>
 
-                            <!-- Image Section -->
-                            <div class="glass-card mb-4">
-                                <div class="card-body">
-                                    <h6 class="section-title">
-                                        <i class="fas fa-image me-2"></i>Item Image
-                                    </h6>
-                                
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="image" class="form-label">Upload Image</label>
-                                                <input type="file" class="form-control" id="image" name="image" accept="image/*">
-                                                <div class="form-help">Optional image for the menu item (JPG, PNG, max 5MB)</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <c:if test="${not empty menuItem.imageUrl}">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Current Image</label>
-                                                    <div>
-                                                        <img src="${pageContext.request.contextPath}${menuItem.imageUrl}" 
-                                                             alt="<c:out value="${menuItem.name}"/>" 
-                                                             class="img-thumbnail" style="max-width: 200px; max-height: 150px;">
-                                                    </div>
-                                                </div>
-                                            </c:if>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Form Actions -->
                             <div class="glass-card">
                                 <div class="card-body">
@@ -256,7 +229,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Form validation and enhancement
             const form = document.getElementById('menuItemForm');
-            const imageInput = document.getElementById('image');
             
             // Form submission validation
             form.addEventListener('submit', function(e) {
@@ -280,28 +252,6 @@
                     }
                 });
             });
-            
-            // Image preview
-            imageInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        // Create preview or update existing preview
-                        let preview = document.getElementById('imagePreview');
-                        if (!preview) {
-                            preview = document.createElement('img');
-                            preview.id = 'imagePreview';
-                            preview.className = 'img-thumbnail mt-2';
-                            preview.style.maxWidth = '200px';
-                            preview.style.maxHeight = '150px';
-                            imageInput.parentNode.appendChild(preview);
-                        }
-                        preview.src = e.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
         });
         
         function resetForm() {
@@ -320,13 +270,6 @@
                     input.value = originalData[key];
                 }
             });
-            
-            // Reset image input
-            document.getElementById('image').value = '';
-            const preview = document.getElementById('imagePreview');
-            if (preview) {
-                preview.remove();
-            }
             
             form.classList.remove('was-validated');
             const inputs = form.querySelectorAll('input, select, textarea');
