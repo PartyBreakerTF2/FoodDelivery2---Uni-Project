@@ -28,6 +28,9 @@
         </mvc:message-converters>
     </mvc:annotation-driven>
 
+    <!-- Static resource mapping -->
+    <mvc:resources mapping="/resources/**" location="/resources/" />
+
     <!-- Configure the view resolver -->
     <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
         <property name="prefix" value="/WEB-INF/views/"/>

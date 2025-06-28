@@ -1,8 +1,10 @@
 package com.uef.food.controller;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.uef.food.model.MenuItem;
@@ -86,8 +89,10 @@ public class RestaurantController {
         }
         
         List<MenuItem> menuItems = menuItemService.findByRestaurant(restaurant.getId());
+        List<String> categories = menuItemService.getAllCategories();
         model.addAttribute("restaurant", restaurant);
         model.addAttribute("menuItems", menuItems);
+        model.addAttribute("categories", categories);
         
         return "restaurant/menu";
     }
@@ -190,42 +195,93 @@ public class RestaurantController {
         
         return "redirect:/restaurant/menu";
     }
-      @GetMapping("/orders")
-    public String manageOrders(HttpSession session, Model model) {
+
+    @PostMapping("/menu/delete/{id}")
+    @ResponseBody
+    public ResponseEntity<String> deleteMenuItem(@PathVariable Long id, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null || user.getRole() != UserRole.RESTAURANT_STAFF) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+        
+        // Check if user is assigned to a restaurant
+        if (user.getRestaurantId() == null) {
+            return ResponseEntity.status(403).body("You are not assigned to any restaurant");
+        }
+        
+        MenuItem menuItem = menuItemService.findById(id);
+        if (menuItem == null) {
+            return ResponseEntity.status(404).body("Menu item not found");
+        }
+        
+        // Security check: ensure the menu item belongs to the staff's restaurant
+        if (!user.getRestaurantId().equals(menuItem.getRestaurantId())) {
+            return ResponseEntity.status(403).body("Unauthorized access to menu item");
+        }
+        
+        try {
+            menuItemService.delete(id);
+            return ResponseEntity.ok("Menu item deleted successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error deleting menu item: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/orders")
+    public String manageOrders(@RequestParam(required = false) String status,
+                             HttpSession session, Model model) {
         User user = (User) session.getAttribute("user");
         if (user == null || user.getRole() != UserRole.RESTAURANT_STAFF) {
             return "redirect:/login";
         }
-        
+
         // Check if user is assigned to a restaurant
         if (user.getRestaurantId() == null) {
             model.addAttribute("error", "You are not assigned to any restaurant. Please contact administrator.");
             return "redirect:/login";
         }
-        
+
         // Get the restaurant this staff member is assigned to
         Restaurant restaurant = restaurantService.findById(user.getRestaurantId());
         if (restaurant == null) {
             model.addAttribute("error", "Restaurant not found. Please contact administrator.");
             return "redirect:/login";
         }
-        
+
         // Get orders for this specific restaurant only
         List<Order> orders = orderService.findByRestaurantId(user.getRestaurantId());
         
-        // Calculate order statistics
-        long pendingCount = orders.stream().filter(o -> o.getStatus() == OrderStatus.PENDING).count();
-        long confirmedCount = orders.stream().filter(o -> o.getStatus() == OrderStatus.CONFIRMED).count();
-        long preparingCount = orders.stream().filter(o -> o.getStatus() == OrderStatus.PREPARING).count();
-        long deliveryCount = orders.stream().filter(o -> o.getStatus() == OrderStatus.OUT_FOR_DELIVERY).count();
-        
+        // Filter by status if provided
+        if (status != null && !status.trim().isEmpty()) {
+            try {
+                OrderStatus filterStatus = OrderStatus.valueOf(status.toUpperCase());
+                orders = orders.stream()
+                    .filter(order -> order.getStatus() == filterStatus)
+                    .collect(Collectors.toList());
+            } catch (IllegalArgumentException e) {
+                // Invalid status, ignore filter
+            }
+        }
+
+        // Calculate order statistics from all orders (not filtered)
+        List<Order> allOrders = orderService.findByRestaurantId(user.getRestaurantId());
+        long pendingCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.PENDING).count();
+        long confirmedCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.CONFIRMED).count();
+        long preparingCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.PREPARING).count();
+        long deliveryCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.OUT_FOR_DELIVERY).count();
+        long deliveredCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.DELIVERED).count();
+        long cancelledCount = allOrders.stream().filter(o -> o.getStatus() == OrderStatus.CANCELLED).count();
+
         model.addAttribute("restaurant", restaurant);
         model.addAttribute("orders", orders);
         model.addAttribute("pendingCount", pendingCount);
         model.addAttribute("confirmedCount", confirmedCount);
         model.addAttribute("preparingCount", preparingCount);
         model.addAttribute("deliveryCount", deliveryCount);
-        
+        model.addAttribute("deliveredCount", deliveredCount);
+        model.addAttribute("cancelledCount", cancelledCount);
+        model.addAttribute("currentStatus", status); // For highlighting active filter
+
         return "restaurant/orders";
     }
     
@@ -261,9 +317,17 @@ public class RestaurantController {
             // Update order status
             OrderStatus newStatus = OrderStatus.valueOf(status);
             order.setStatus(newStatus);
-            orderService.save(order);
             
-            redirectAttributes.addFlashAttribute("success", "Order #" + orderId + " status updated to " + status.replace("_", " ").toLowerCase() + ".");
+            // Try to save the order
+            try {
+                orderService.save(order);
+                redirectAttributes.addFlashAttribute("success", "Order #" + orderId + " status updated to " + status.replace("_", " ").toLowerCase() + ".");
+            } catch (RuntimeException e) {
+                redirectAttributes.addFlashAttribute("error", "Failed to update order status: " + e.getMessage());
+            }
+            
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", "Invalid order status: " + status);
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Failed to update order status: " + e.getMessage());
         }

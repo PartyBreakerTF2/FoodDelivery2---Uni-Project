@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -124,11 +125,19 @@ public class CustomerController {
         }
         
         List<MenuItem> menuItems = menuItemService.findByRestaurant(id);
-        List<String> categories = menuItemService.getAllCategories();
+
+        // Get categories specific to this restaurant
+        List<String> categories = menuItems.stream()
+            .filter(item -> item.getCategory() != null && !item.getCategory().trim().isEmpty())
+            .map(MenuItem::getCategory)
+            .distinct()
+            .sorted()
+            .collect(Collectors.toList());
         
         model.addAttribute("restaurant", restaurant);
         model.addAttribute("menuItems", menuItems);
         model.addAttribute("categories", categories);
+        model.addAttribute("user", user);
         
         return "customer/menu";
     }
@@ -562,6 +571,186 @@ public class CustomerController {
         } catch (Exception e) {
             response.put("success", false);
             response.put("message", "Error retrieving rating: " + e.getMessage());
+        }
+        
+        return response;
+    }
+    
+    @PostMapping("/orders")
+    @ResponseBody
+    @Transactional
+    public Map<String, Object> createOrder(@RequestBody Map<String, Object> orderData, HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Check if user is logged in
+            User user = (User) session.getAttribute("user");
+            if (user == null || user.getRole() != UserRole.CUSTOMER) {
+                response.put("success", false);
+                response.put("message", "You must be logged in as a customer");
+                return response;
+            }
+            
+            // Extract order data
+            Long restaurantId = Long.valueOf(orderData.get("restaurantId").toString());
+            String phone = (String) orderData.get("phone");
+            String deliveryAddress = (String) orderData.get("deliveryAddress");
+            String notes = (String) orderData.get("notes");
+            
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> items = (List<Map<String, Object>>) orderData.get("items");
+            
+            // Validate required fields
+            if (restaurantId == null || phone == null || phone.trim().isEmpty() || 
+                deliveryAddress == null || deliveryAddress.trim().isEmpty() || 
+                items == null || items.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Missing required order information");
+                return response;
+            }
+            
+            // Get restaurant
+            Restaurant restaurant = restaurantService.findById(restaurantId);
+            if (restaurant == null || !restaurant.isActive()) {
+                response.put("success", false);
+                response.put("message", "Restaurant not found or inactive");
+                return response;
+            }
+            
+            // Create order
+            Order order = new Order();
+            order.setCustomer(user);
+            order.setCustomerId(user.getId()); // Set customer ID explicitly
+            order.setRestaurant(restaurant);
+            order.setRestaurantId(restaurantId);
+            order.setDeliveryAddress(deliveryAddress);
+            
+            // Combine phone and notes into special instructions
+            String specialInstructions = "Phone: " + phone;
+            if (notes != null && !notes.trim().isEmpty()) {
+                specialInstructions += "\nNotes: " + notes;
+            }
+            order.setSpecialInstructions(specialInstructions);
+            
+            order.setStatus(OrderStatus.PENDING);
+            order.setOrderDate(new Timestamp(System.currentTimeMillis()));
+            
+            // Calculate total
+            double totalAmount = 0.0;
+            for (Map<String, Object> itemData : items) {
+                Long menuItemId = Long.valueOf(itemData.get("menuItemId").toString());
+                Integer quantity = Integer.valueOf(itemData.get("quantity").toString());
+                Double unitPrice = Double.valueOf(itemData.get("unitPrice").toString());
+                
+                MenuItem menuItem = menuItemService.findById(menuItemId);
+                if (menuItem == null || !menuItem.isAvailable()) {
+                    response.put("success", false);
+                    response.put("message", "One or more menu items are not available");
+                    return response;
+                }
+                
+                totalAmount += unitPrice * quantity;
+            }
+            
+            // Add delivery fee
+            totalAmount += 2.99;
+            order.setTotalAmount(totalAmount);
+            
+            // Save order first to get ID
+            order = orderService.save(order);
+            
+            // Check if order was saved successfully
+            if (order == null || order.getId() == null) {
+                response.put("success", false);
+                response.put("message", "Failed to create order in database");
+                return response;
+            }
+            
+            // Create order items
+            for (Map<String, Object> itemData : items) {
+                Long menuItemId = Long.valueOf(itemData.get("menuItemId").toString());
+                Integer quantity = Integer.valueOf(itemData.get("quantity").toString());
+                Double unitPrice = Double.valueOf(itemData.get("unitPrice").toString());
+                
+                MenuItem menuItem = menuItemService.findById(menuItemId);
+                
+                OrderItem orderItem = new OrderItem();
+                orderItem.setOrderId(order.getId()); // Set the order ID
+                orderItem.setMenuItemId(menuItemId); // Set the menu item ID
+                orderItem.setMenuItemName(menuItem.getName()); // Set the menu item name
+                orderItem.setMenuItemPrice(unitPrice); // Set the menu item price
+                orderItem.setQuantity(quantity);
+                orderItem.setUnitPrice(unitPrice);
+                orderItem.setTotalPrice(unitPrice * quantity);
+                orderItem.setSubtotal(unitPrice * quantity); // Set subtotal for the service
+                
+                // Also set the objects for convenience
+                orderItem.setOrder(order);
+                orderItem.setMenuItem(menuItem);
+                
+                orderItemService.save(orderItem);
+            }
+            
+            response.put("success", true);
+            response.put("message", "Order placed successfully!");
+            response.put("orderId", order.getId());
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error creating order: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return response;
+    }
+    
+    @PostMapping("/orders/{id}/cancel")
+    @ResponseBody
+    public Map<String, Object> cancelOrder(@PathVariable Long id, HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Check if user is logged in
+            User user = (User) session.getAttribute("user");
+            if (user == null || user.getRole() != UserRole.CUSTOMER) {
+                response.put("success", false);
+                response.put("message", "You must be logged in as a customer");
+                return response;
+            }
+            
+            // Find the order
+            Order order = orderService.findById(id);
+            if (order == null) {
+                response.put("success", false);
+                response.put("message", "Order not found");
+                return response;
+            }
+            
+            // Check if the order belongs to the current user
+            if (!order.getCustomerId().equals(user.getId())) {
+                response.put("success", false);
+                response.put("message", "You can only cancel your own orders");
+                return response;
+            }
+            
+            // Check if order can be cancelled (only PENDING orders can be cancelled)
+            if (order.getStatus() != OrderStatus.PENDING) {
+                response.put("success", false);
+                response.put("message", "Only pending orders can be cancelled");
+                return response;
+            }
+            
+            // Update order status to CANCELLED
+            order.setStatus(OrderStatus.CANCELLED);
+            orderService.save(order);
+            
+            response.put("success", true);
+            response.put("message", "Order cancelled successfully");
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error cancelling order: " + e.getMessage());
+            e.printStackTrace();
         }
         
         return response;

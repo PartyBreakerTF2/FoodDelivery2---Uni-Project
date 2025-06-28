@@ -343,11 +343,16 @@ public class OrderService {
         return findByCustomerId(userId);
     }
       public List<Order> findByRestaurantId(Long restaurantId) {
+        System.out.println("Finding orders for restaurant ID: " + restaurantId);
+        System.out.println("ordersTableExists: " + ordersTableExists);
+        
         if (!checkTableExists()) {
+            System.out.println("Table check failed, using sample orders");
             List<Order> orders = createSampleOrders(5).stream()
                 .filter(order -> order.getRestaurantId().equals(restaurantId))
                 .collect(java.util.stream.Collectors.toList());
             populateCustomerAndRestaurantBatch(orders);
+            System.out.println("Sample orders found: " + orders.size());
             return orders;
         }
         
@@ -355,9 +360,13 @@ public class OrderService {
             String sql = "SELECT * FROM orders WHERE restaurant_id = ? ORDER BY id DESC";
             List<Order> orders = jdbcTemplate.query(sql, orderRowMapper, restaurantId);
             populateCustomerAndRestaurantBatch(orders);
+            System.out.println("Database orders found: " + orders.size());
             return orders;
         } catch (Exception e) {
-            ordersTableExists = false;
+            System.err.println("Error finding orders by restaurant ID: " + e.getMessage());
+            e.printStackTrace();
+            // Don't set ordersTableExists = false here, as this might be a temporary issue
+            // ordersTableExists = false; 
             return new ArrayList<>();
         }
     }
@@ -424,15 +433,19 @@ public class OrderService {
             }
             return order;
         } catch (Exception e) {
+            System.err.println("Error inserting order: " + e.getMessage());
+            e.printStackTrace();
             ordersTableExists = false;
-            return order;
+            // Return null to indicate failure rather than returning order without ID
+            return null;
         }
     }
     
     private Order update(Order order) {
         try {
+            System.out.println("Updating order with ID: " + order.getId() + ", status: " + order.getStatus());
             String sql = "UPDATE orders SET customer_id=?, restaurant_id=?, status=?, total_amount=?, delivery_address=?, special_instructions=?, delivery_date=? WHERE id=?";
-            jdbcTemplate.update(sql,
+            int rowsUpdated = jdbcTemplate.update(sql,
                 order.getCustomerId(),
                 order.getRestaurantId(),
                 order.getStatus().toString(),
@@ -442,10 +455,15 @@ public class OrderService {
                 order.getDeliveryDate(),
                 order.getId()
             );
+            System.out.println("Order update completed. Rows updated: " + rowsUpdated);
             return order;
         } catch (Exception e) {
-            ordersTableExists = false;
-            return order;
+            System.err.println("Error updating order: " + e.getMessage());
+            e.printStackTrace();
+            // Don't set ordersTableExists = false for update failures, as the table likely exists
+            // The issue might be with the data, not the table existence
+            // ordersTableExists = false;
+            throw new RuntimeException("Failed to update order: " + e.getMessage(), e);
         }
     }
     
@@ -529,24 +547,43 @@ public class OrderService {
     public List<Order> findPendingOrders() {
         return findByStatus(OrderStatus.PENDING);
     }
-      public List<Order> findActiveOrders() {
+      // Add efficient count methods for reports
+    public long countByStatus(OrderStatus status) {
         if (!checkTableExists()) {
-            List<Order> orders = createSampleOrders(5).stream()
-                .filter(order -> !order.getStatus().equals(OrderStatus.DELIVERED) && 
-                               !order.getStatus().equals(OrderStatus.CANCELLED))
-                .collect(java.util.stream.Collectors.toList());
-            populateCustomerAndRestaurantBatch(orders);
-            return orders;
+            // Return sample counts based on status
+            switch (status) {
+                case PENDING: return 5L;
+                case DELIVERED: return 38L;
+                case CONFIRMED: return 2L;
+                case PREPARING: return 1L;
+                case OUT_FOR_DELIVERY: return 1L;
+                case CANCELLED: return 4L;
+                default: return 0L;
+            }
         }
         
         try {
-            String sql = "SELECT * FROM orders WHERE status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY') ORDER BY order_date DESC";
-            List<Order> orders = jdbcTemplate.query(sql, orderRowMapper);
-            populateCustomerAndRestaurantBatch(orders);
-            return orders;
+            String sql = "SELECT COUNT(*) FROM orders WHERE status = ?";
+            Integer count = jdbcTemplate.queryForObject(sql, Integer.class, status.toString());
+            return count != null ? count.longValue() : 0L;
         } catch (Exception e) {
             ordersTableExists = false;
-            return new ArrayList<>();
+            return 0L;
+        }
+    }
+
+    public long countActiveOrders() {
+        if (!checkTableExists()) {
+            return 4L; // Sample count
+        }
+        
+        try {
+            String sql = "SELECT COUNT(*) FROM orders WHERE status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY')";
+            Integer count = jdbcTemplate.queryForObject(sql, Integer.class);
+            return count != null ? count.longValue() : 0L;
+        } catch (Exception e) {
+            ordersTableExists = false;
+            return 4L;
         }
     }
     

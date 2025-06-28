@@ -69,32 +69,38 @@ public class OrderItemService {
             return orderItem;
         }
     };    public OrderItem save(OrderItem orderItem) {
-        if (orderItem.getId() == null) {
-            // Insert new order item
-            jdbcTemplate.update(INSERT_ORDER_ITEM,
-                orderItem.getOrderId(),
-                orderItem.getMenuItemName(),
-                orderItem.getMenuItemPrice(),
-                orderItem.getQuantity(),
-                orderItem.getSubtotal()
-            );
-            
-            // Get the generated ID
-            Long generatedId = jdbcTemplate.queryForObject(
-                "SELECT SCOPE_IDENTITY()", Long.class);
-            orderItem.setId(generatedId);
-        } else {
-            // Update existing order item
-            jdbcTemplate.update(UPDATE_ORDER_ITEM,
-                orderItem.getOrderId(),
-                orderItem.getMenuItemName(),
-                orderItem.getMenuItemPrice(),
-                orderItem.getQuantity(),
-                orderItem.getSubtotal(),
-                orderItem.getId()
-            );
+        try {
+            if (orderItem.getId() == null) {
+                // Insert new order item
+                jdbcTemplate.update(INSERT_ORDER_ITEM,
+                    orderItem.getOrderId(),
+                    orderItem.getMenuItemName(),
+                    orderItem.getMenuItemPrice(),
+                    orderItem.getQuantity(),
+                    orderItem.getSubtotal()
+                );
+                
+                // Get the generated ID
+                Long generatedId = jdbcTemplate.queryForObject(
+                    "SELECT SCOPE_IDENTITY()", Long.class);
+                orderItem.setId(generatedId);
+            } else {
+                // Update existing order item
+                jdbcTemplate.update(UPDATE_ORDER_ITEM,
+                    orderItem.getOrderId(),
+                    orderItem.getMenuItemName(),
+                    orderItem.getMenuItemPrice(),
+                    orderItem.getQuantity(),
+                    orderItem.getSubtotal(),
+                    orderItem.getId()
+                );
+            }
+            return orderItem;
+        } catch (Exception e) {
+            System.err.println("Error saving order item: " + e.getMessage());
+            e.printStackTrace();
+            throw e; // Re-throw to let the controller handle it
         }
-        return orderItem;
     }
 
     public OrderItem findById(Long id) {
